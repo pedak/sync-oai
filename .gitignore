@@ -1,0 +1,6 @@
+*.log
+resync/static/sitemap*.xml
+build/
+dist/
+*.pyc
+*~
