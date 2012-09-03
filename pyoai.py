@@ -140,17 +140,6 @@ class Header(object):
     def __str__(self):
         return "identifier: %s, datestamp %s, isDeleted: %s" % (self._identifier, self._datestamp, self._isdeleted)
 
-class Response(object):
-    
-    def __init__(self,rdate,records,rtoken):
-          self.rdate=rdate
-          self.records=records
-          self.rtoken=rtoken
-    
-    def __str__(self):
-        return "responseDate: %s, records %s, resumptionToken: %s" % (self.rdate, self.records, self.rtoken)
-        
-
 def main():
     client=Client("http://eprints.mminf.univie.ac.at/cgi/oai2")  
   #  client=Client("http://localhost/test.php")  
