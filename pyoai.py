@@ -53,8 +53,8 @@ class Client(object):
                                 header=self.buildHeader(header_node)
                                 metadata_node=xmlrecords.find('{'+OAI_NS+"}metadata")
                                 if metadata_node:
-                                    metadata=self.getIdentifier(metadata_node[0])
-                                yield Record(header,metadata,rdate)
+                                    resource=self.getIdentifier(metadata_node[0])
+                                yield Record(header,resource,rdate)
                         if(listRecords.find('{'+OAI_NS+"}resumptionToken") is not None):
                             rtoken=listRecords.find('{'+OAI_NS+"}resumptionToken").text
                             params = re.sub("&resumptionToken=.*","",params)    #delete previous resumptionToken
@@ -99,29 +99,15 @@ class Client(object):
                         
     
 class Record(object):
-    def __init__(self,header,metadata,response_date):
+    def __init__(self,header,resource,response_date):
         self.header=header
-        self.metadata=metadata
+        self.resource=resource
         self.response_date=response_date
     
     def __str__(self):
-        return "Header: {%s}, Metadata: {%s}, Response-Date %s" % (self.header,self.metadata, self.response_date)
+        return "Header: {%s}, Resource: {%s}, Response-Date %s" % (self.header,self.resource, self.response_date)
 
         
-class Metadata(object):
-    def __init__(self,relation,identifier):
-        self._relation = relation
-        self._identifier = identifier
-    
-    def identifier(self):
-        return unicode(self._identifier)
-    
-    def relation(self):
-        return self._relation
-        
-    def __str__(self):
-        return "relation: %s, identifier: %s" % (self._relation,self._identifier) #.encode('ascii','ignore')
-    
 class Header(object):
     def __init__(self,identifier,datestamp,isdeleted):
         self._identifier = identifier
