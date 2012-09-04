@@ -31,9 +31,10 @@ from resync.inventory import Inventory
 from resync.sitemap import Sitemap, Mapper
 
 ##oai
-from pyoai.client import Client
-from pyoai.metadata import MetadataRegistry, oai_dc_reader
-from pyoai.error import NoRecordsMatchError
+# from pyoai.client import Client
+# from pyoai.metadata import MetadataRegistry, oai_dc_reader
+# from pyoai.error import NoRecordsMatchError
+from pyoaipmh.pyoai import Client, Header, Record
 
 #### Source-specific capability implementations ####
 
@@ -379,29 +380,30 @@ class Source(Observable):
             self.notify_observers(change)
     
     def bootstrap_oai(self,endpoint):
-        registry = MetadataRegistry()
-        registry.registerReader('oai_dc', oai_dc_reader)
-        self.client = Client(endpoint, registry)
-        client = Client("http://eprints.erpanet.org/perl/oai2", registry) # DEBUG
-        #self.client = Client("http://eprints.mminf.univie.ac.at/cgi/oai2", registry)
-        self.client = Client("http://eprints.mminf.univie.ac.at/cgi/oai2", registry)
-        resources=[]
-        import datetime
-        self.client.updateGranularity()
-        date=datetime.datetime(2012,01,01)
-        #for i,record in enumerate(self.client.listRecords(metadataPrefix='oai_dc')):
-        for i,record in enumerate(self.client.listRecords(metadataPrefix='oai_dc', from_=date)): # limit to specific date
-            #search for identifier in fields identifier and relation
-            self.check_record(record,init=True)
-                        
-        checkdate=datetime.datetime.now() #debug local time != server time    
-        while(True):
-            time.sleep(10)
-            self.check(checkdate)
-            checkdate=datetime.datetime.now() #debug local time != server time
-            print checkdate.strftime("%Y-%m-%dT%H:%M:%S")
-                            
-        time.sleep(99999)
+        time.sleep(2000)
+        # registry = MetadataRegistry()
+        # registry.registerReader('oai_dc', oai_dc_reader)
+        # self.client = Client(endpoint, registry)
+        # client = Client("http://eprints.erpanet.org/perl/oai2", registry) # DEBUG
+        # #self.client = Client("http://eprints.mminf.univie.ac.at/cgi/oai2", registry)
+        # self.client = Client("http://eprints.mminf.univie.ac.at/cgi/oai2", registry)
+        # resources=[]
+        # import datetime
+        # self.client.updateGranularity()
+        # date=datetime.datetime(2012,01,01)
+        # #for i,record in enumerate(self.client.listRecords(metadataPrefix='oai_dc')):
+        # for i,record in enumerate(self.client.listRecords(metadataPrefix='oai_dc', from_=date)): # limit to specific date
+        #     #search for identifier in fields identifier and relation
+        #     self.check_record(record,init=True)
+        #                 
+        # checkdate=datetime.datetime.now() #debug local time != server time    
+        # while(True):
+        #     time.sleep(10)
+        #     self.check(checkdate)
+        #     checkdate=datetime.datetime.now() #debug local time != server time
+        #     print checkdate.strftime("%Y-%m-%dT%H:%M:%S")
+        #                     
+        # time.sleep(99999)
         
     def check(self,date):
         try:
