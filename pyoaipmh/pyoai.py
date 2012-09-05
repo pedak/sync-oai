@@ -16,23 +16,27 @@ import datetime
 OAI_NS="http://www.openarchives.org/OAI/2.0/"
 DC_NS="http://purl.org/dc/elements/1.1/"
 
-
-
 class Client(object):
     """OAI Client manages communication with an OAI-Endpoint"""
     
     def __init__(self,endpoint):
         self.endpoint=endpoint
     
+    def get_datestamp(self, datestring):
+        return datestring.strftime("%Y-%m-%dT%H:%M:%SZ")
+        
     def listRecords(self,afrom=None):
         """lists Records with infos about resource"""
         if afrom:
+            if type(afrom)==datetime.datetime:  #if not datestamp convert to datestamp
+                afrom=self.get_datestamp(afrom)
             params = urlencode({'verb': 'ListRecords', 'metadataPrefix': 'oai_dc', "from": afrom})
         else:
             params = urlencode({'verb': 'ListRecords', 'metadataPrefix': 'oai_dc'})
+            
         while True:
-                more = False
                 try:
+                    print self.endpoint+"?"+params
                     fh=urlopen(self.endpoint+"?"+params)
                 except HTTPError, e:
                     if e.code == 503:
@@ -52,6 +56,8 @@ class Client(object):
                     etree=parse(fh)
                     if (etree.getroot().tag == '{'+OAI_NS+"}OAI-PMH"): #check if it is an oai-pmh xml doc
                         rdate=etree.find('{'+OAI_NS+"}responseDate").text
+                        for error in etree.findall('{'+OAI_NS+"}error"):
+                            raise Exception, error.attrib['code']+error.text
                         listRecords=etree.find('{'+OAI_NS+"}ListRecords")
                         for xmlrecords in listRecords.findall('{'+OAI_NS+"}record"):
                                 header_node=xmlrecords.find('{'+OAI_NS+"}header")
@@ -66,9 +72,10 @@ class Client(object):
                             params += '&resumptionToken='+rtoken #add new resumptionToken
                         else:
                             break
-                    
+            
                 except AttributeError, e:
                      print "Attribute Error (xml?) %s" % e
+                     
                 except ParseError, e:
                     print "ParseError %s" % e
                 
@@ -153,7 +160,7 @@ def main():
 #   client=Client("http://eprints.mminf.univie.ac.at/cgi/oai2?verb=ListRecords&metadataPrefix=oai_dc&from=2012-08-01")  
     #x=client.listRecords("2012-09-02")
 
-    for i,y in enumerate(client.listRecords("2011-08-02")):
+    for i,y in enumerate(client.listRecords("2013-08-02T01:01:01Z")):
         print i,y
     # während loop werden neue noch aufgenommen.
     #for y in x.records:
