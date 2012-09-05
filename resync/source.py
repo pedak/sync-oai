@@ -379,8 +379,11 @@ class Source(Observable):
                         changetype = "DELETE")
             self.notify_observers(change)
     
-    def bootstrap_oai(self,endpoint):
-        time.sleep(2000)
+    def bootstrap_oai(self,endpoint): #todo update granularity
+        client=Client(endpoint)
+        for i,record in enumerate(client.listRecords("2012-08-02")):
+            self.check_record(record,init=True)
+        time.sleep(99999)
         # registry = MetadataRegistry()
         # registry.registerReader('oai_dc', oai_dc_reader)
         # self.client = Client(endpoint, registry)
@@ -392,6 +395,7 @@ class Source(Observable):
         # self.client.updateGranularity()
         # date=datetime.datetime(2012,01,01)
         # #for i,record in enumerate(self.client.listRecords(metadataPrefix='oai_dc')):
+        
         # for i,record in enumerate(self.client.listRecords(metadataPrefix='oai_dc', from_=date)): # limit to specific date
         #     #search for identifier in fields identifier and relation
         #     self.check_record(record,init=True)
@@ -411,17 +415,19 @@ class Source(Observable):
                 self.check_record(record)
         except NoRecordsMatchError as e:
             print "No new records found: %s" % e
-            
+    
+
+                
     def check_record(self,record,init=False):
-        if(record[1]):# and re.match("(https?|ftp|file)://[-A-Za-z0-9+&@#/%?=~_|!:,.;]*[-A-Za-z0-9+&@#/%=~_|]",record[1].getField("identifier")[0])):
+        if(record):# and re.match("(https?|ftp|file)://[-A-Za-z0-9+&@#/%?=~_|!:,.;]*[-A-Za-z0-9+&@#/%=~_|]",record[1].getField("identifier")[0])):
                 basename=self.get_identifier(record)        
                 timestamp=self.get_timestamp(record)
                 print "identifier: %s, timestamp %s" % (basename, timestamp)
                 if len(basename)>0 and timestamp:
-                    if(not record[0].isDeleted()):
+                    if(not record.header().isDeleted()):
                         self._repository[basename] = {'timestamp': timestamp, 'size': 0}
                         # write local mapping file
-                        self.oaimapping[record[0].identifier()]=basename;
+                        self.oaimapping[record.resource()]=basename;
                         change = ResourceChange(
                             resource = self.resource(basename),
                             changetype = "CREATE")
@@ -437,25 +443,10 @@ class Source(Observable):
                             self.notify_observers(change)
         
     def get_identifier(self,record):
-        for identifier in record[1].getField("identifier"):
-            if (re.match("(https?|ftp|file)://[-A-Za-z0-9+&@#/%?=~_|!:,.;]*[-A-Za-z0-9+&@#/%=~_|]",identifier)):
-                print "basename found:%s "% id
-                return str(identifier)
-
-        for relation in record[1].getField("relation"):
-            if (re.match("(https?|ftp|file)://[-A-Za-z0-9+&@#/%?=~_|!:,.;]*[-A-Za-z0-9+&@#/%=~_|]",relation)):
-                print "relation(=basename) found:%s "% id
-                return str(relation)
-
-        for identifier in record[1].getField("identifier"):
-            if (re.search("(https?|ftp|file)://[-A-Za-z0-9+&@#/%?=~_|!:,.;]*[-A-Za-z0-9+&@#/%=~_|]",identifier)):
-                print "basename extracted of identifier"
-                return re.search("(https?|ftp|file)://[-A-Za-z0-9+&@#/%?=~_|!:,.;]*[-A-Za-z0-9+&@#/%=~_|]",identifier).group()
-        
-        return ""        
+        return record.resource()
                 
     def get_timestamp(self, record):
-        return time.mktime(record[0].datestamp().timetuple())
+        return time.mktime(record.header().datestamp().timetuple())
         
     
     def __str__(self):

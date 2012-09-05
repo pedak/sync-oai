@@ -8,9 +8,10 @@ Created by Peter Kalchgruber on 2012-09-01.
 
 from urllib2 import urlopen, HTTPError
 from urllib import urlencode
-from xml.etree.ElementTree import  parse, ParseError
-from re import sub
+from xml.etree.ElementTree import  parse, ParseError, tostring
+import re
 from time import sleep
+import datetime
 
 OAI_NS="http://www.openarchives.org/OAI/2.0/"
 DC_NS="http://purl.org/dc/elements/1.1/"
@@ -56,7 +57,7 @@ class Client(object):
                                 header_node=xmlrecords.find('{'+OAI_NS+"}header")
                                 header=self.buildHeader(header_node)
                                 metadata_node=xmlrecords.find('{'+OAI_NS+"}metadata")
-                                if metadata_node:
+                                if metadata_node is not None:
                                     resource=self.getIdentifier(metadata_node[0])
                                 yield Record(header,resource,rdate)
                         if(listRecords.find('{'+OAI_NS+"}resumptionToken") is not None):
@@ -66,7 +67,8 @@ class Client(object):
                         else:
                             break
                     
-                    
+                except AttributeError, e:
+                     print "Attribute Error (xml?) %s" % e
                 except ParseError, e:
                     print "ParseError %s" % e
                 
@@ -79,7 +81,7 @@ class Client(object):
             if children.tag=='{'+OAI_NS+'}identifier':
                 identifier=children.text
             elif children.tag=='{'+OAI_NS+'}datestamp':
-                datestamp=children.text
+                datestamp=self.datestamp_to_date(children.text)
         if header_node.attrib=={'status': 'deleted'}:
             isdeleted=True
         return Header(identifier,datestamp,isdeleted)
@@ -96,16 +98,33 @@ class Client(object):
             if(url):
                 return url.group()
         return None
+    
+    def datestamp_to_date(self, datestamp):
+        parts = datestamp.split('T')
+        date, time = parts
+        time = time[:-1] # remove final Z
+        year, month, day = date.split('-')
+        hours, minutes, seconds = time.split(':')
+        return datetime.datetime(int(year), int(month), int(day), int(hours), int(minutes), int(seconds))
      
 class Record(object):
     """record about resource"""
     def __init__(self,header,resource,response_date):
-        self.header=header
-        self.resource=resource
-        self.response_date=response_date
+        self._header=header
+        self._resource=resource
+        self._response_date=response_date
+        
+    def header(self):
+        return self._header
+    
+    def resource(self):
+        return self._resource
+    
+    def responseDate(self):
+        return self._response_date
     
     def __str__(self):
-        return "Header: {%s}, Resource: {%s}, Response-Date %s" % (self.header,self.resource, self.response_date)
+        return "Header: {%s}, Resource: {%s}, Response-Date %s" % (self._header,self._resource, self._response_date)
 
         
 class Header(object):

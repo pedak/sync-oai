@@ -92,6 +92,7 @@ def main():
     try:
         DEFAULT_OAI_ENDPOINT = 'http://eprints.ucm.es/cgi/oai2'
         DEFAULT_OAI_ENDPOINT = "http://eprints.erpanet.org/perl/oai2"
+        DEFAULT_OAI_ENDPOINT = 'http://eprints.mminf.univie.ac.at/cgi/oai2'
         http_interface.start()
         source.bootstrap_oai(DEFAULT_OAI_ENDPOINT)
 
