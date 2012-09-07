@@ -307,6 +307,14 @@ class Source(Observable):
         if number > len(self._repository):
             number = len(self._repository)
         rand_basenames = random.sample(self._repository.keys(), number)
+        print "x"
+        print self._repository.keys()
+        print "y"
+        print rand_basenames
+        print "z"
+        for basename in rand_basenames:
+            print self.resource(basename)
+        print "a"
         return [self.resource(basename) for basename in rand_basenames]
         
     def simulate_changes(self):

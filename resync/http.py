@@ -116,8 +116,7 @@ class HomeHandler(BaseRequestHandler):
 class ResourceListHandler(BaseRequestHandler):
     """Resource list selection handler"""
     def get(self):
-        rand_res = sorted(self.source.random_resources(100), 
-            key = lambda res: int(res.basename))
+        rand_res = sorted(self.source.random_resources(100))
         self.render("resource.index.html", resources = rand_res)
                         
 

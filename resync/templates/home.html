@@ -4,11 +4,8 @@
   
   <h2>Simulation overview</h2>
 
-  <p>Simulated data source: <b>{{ source.config['name'] }}</b></p>
-  <p>Number of seed resources: <b>{{ source.config['number_of_resources'] }}</b></p>
-  <p>Change delay (in seconds): <b> {{ source.config['change_delay'] }}</b></p>
+  <p>Simulated data source: <b>{{ source.config['endpoint'] }}</b></p>
   <p>Event types: <b>{{ " ".join(source.config['event_types']) }}</b></p>
-  <p>Average payload: <b>{{ source.config['average_payload'] }}</b> bytes</p>
   <p>Current resources: <b>{{ resource_count }} </b>
     (<a href="/resources">view sample)</a>
   </p>

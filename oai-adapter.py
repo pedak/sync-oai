@@ -97,7 +97,7 @@ def main():
         DEFAULT_OAI_ENDPOINT = 'http://eprints.mminf.univie.ac.at/cgi/oai2'
         http_interface.start()
         startdate=datetime.datetime(2012,9,6,1,2,3) 
-        source.bootstrap_oai(DEFAULT_OAI_ENDPOINT,startdate)
+        source.bootstrap_oai(source_settings['endpoint'],startdate)
 
     except KeyboardInterrupt:
         print "Exiting gracefully..."

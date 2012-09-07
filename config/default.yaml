@@ -4,6 +4,7 @@
 
 source:
     name: ResourceSync Simulator
+    endpoint: http://eprints.mminf.univie.ac.at/cgi/oai2
     number_of_resources: 10000
     change_delay: 2
     event_types: [create, update, delete]
