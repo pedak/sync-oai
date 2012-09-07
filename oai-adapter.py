@@ -12,6 +12,8 @@ import argparse
 import yaml
 import logging
 import logging.config
+import datetime
+
 
 from resync.source import Source
 from resync.http import HTTPInterface
@@ -94,7 +96,8 @@ def main():
         DEFAULT_OAI_ENDPOINT = "http://eprints.erpanet.org/perl/oai2"
         DEFAULT_OAI_ENDPOINT = 'http://eprints.mminf.univie.ac.at/cgi/oai2'
         http_interface.start()
-        source.bootstrap_oai(DEFAULT_OAI_ENDPOINT)
+        startdate=datetime.datetime(2012,9,6,1,2,3) 
+        source.bootstrap_oai(DEFAULT_OAI_ENDPOINT,startdate)
 
     except KeyboardInterrupt:
         print "Exiting gracefully..."

@@ -21,7 +21,7 @@ loggers:
     propagate: no
   inventory_builder:
     level: INFO
-    handlers: [console]
+    handlers: [file]
     propagate: no
   sitemap:
     level: INFO

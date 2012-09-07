@@ -26,7 +26,7 @@ from apscheduler.scheduler import Scheduler
 from resync.observer import Observable
 from resync.resource_change import ResourceChange
 from resync.resource import Resource
-from resync.digest import compute_md5_for_string
+from resync.digest import compute_md5_for_string, compute_md5_for_url
 from resync.inventory import Inventory
 from resync.sitemap import Sitemap, Mapper
 
@@ -34,8 +34,10 @@ from resync.sitemap import Sitemap, Mapper
 # from pyoai.client import Client
 # from pyoai.metadata import MetadataRegistry, oai_dc_reader
 # from pyoai.error import NoRecordsMatchError
-from pyoaipmh.pyoai import Client, Header, Record
+from pyoaipmh.pyoai import Client, Header, Record, Common, NoRecordsException
 import datetime
+import urllib
+from urllib2 import URLError
 
 #### Source-specific capability implementations ####
 
@@ -196,7 +198,8 @@ class Source(Observable):
         self.inventory_builder = None # The inventory builder implementation
         self.changememory = None # The change memory implementation
         self.oaimapping = {} #oai
-        self.client=None
+        self.client=None #oai
+        self.lastcheckdate="1970-01-01T00:00:00Z" #oai
     
     ##### Source capabilities #####
     
@@ -284,7 +287,9 @@ class Source(Observable):
 #        uri = self.base_uri + Source.RESOURCE_PATH + "/" + basename #oai
         timestamp = self._repository[basename]['timestamp']
         size = self._repository[basename]['size']
-        md5 = compute_md5_for_string(self.resource_payload(basename, size))
+        md5=-1
+        if size>0:
+            md5 = compute_md5_for_url(basename) #oai
         return Resource(uri = uri, timestamp = timestamp, size = size,
                         md5 = md5)
     
@@ -354,7 +359,8 @@ class Source(Observable):
     
     def _create_resource(self, basename = None, identifier = None, timestamp=time.time(), notify_observers = True):
         """Create a new resource, add it to the source, notify observers."""
-        self._repository[basename] = {'timestamp': timestamp, 'size': 0}
+        size=Common.get_size(basename)
+        self._repository[basename] = {'timestamp': timestamp, 'size': size}
         # write local mapping file
         self.oaimapping[identifier]=basename;
         change = ResourceChange(
@@ -362,8 +368,10 @@ class Source(Observable):
             changetype = "CREATE")
         self.notify_observers(change)
         
-    def _update_resource(self, basename):
+    def _update_resource(self, basename, timestamp):
         """Update a resource, notify observers."""
+        size=Common.get_size(basename)
+        self._repository[basename] = {'timestamp': timestamp, 'size': size}
         change = ResourceChange(
                     resource = self.resource(basename),
                     changetype = "UPDATE")
@@ -371,9 +379,10 @@ class Source(Observable):
 
     def _delete_resource(self, identifier, timestamp, notify_observers = True):
         """Delete a given resource, notify observers."""
-        self.oaimapping[identifier]=basename;
-        res = self.resource(basename)
-        del self._repository[basename]
+        identifier=self.oaimapping[identifier]
+        res = self.resource(identifier)
+        del self._repository[identifier]
+        del self.oaimapping[identifier]
         res.timestamp = timestamp
         if notify_observers:
             change = ResourceChange(
@@ -381,52 +390,66 @@ class Source(Observable):
                         changetype = "DELETE")
             self.notify_observers(change)
     
-    def bootstrap_oai(self,endpoint): #todo update granularity
+    def bootstrap_oai(self,endpoint,startdate): #todo update granularity
+        """bootstraps OAI-PMH Source"""
         self.logger.debug("Connection to OAI-Endpoint")
         self.client=Client(endpoint)
-        checkdate=datetime.datetime(2012,8,2,1,2,3) 
-        i=0     
-        for i,record in enumerate(self.client.listRecords(checkdate)):
-            self.check_record(record,init=True)
-            checkdate=record.responseDate()
+        try:
+            for i,record in enumerate(self.client.listRecords(startdate)):
+                self.check_record(record,init=True)
+                self.lastcheckdate=record.responseDate()
         
-        self.logger.info("Finished adding  %d initial resources with checkdate: %s" % (i,checkdate))
-        i=0
-        while(True):
-            time.sleep(10)
-            i=i+1
-            self.logger.debug("Start with %d. run to check for updates at OAI with checkdate: %s" % (i,checkdate))
-            checkdate=self.check(checkdate)
+            self.logger.info("Finished adding  %d initial resources with checkdate: %s" % (i,self.lastcheckdate))
+            self.updateCheck()
+        except URLError, e:
+            print "URLError: %s" % (e)
+    
+    def check_record(self,record,init=False):
+        """reads record, extract and returns Records with information about (resource uri, timestamp, identifier)"""
+        if record:
+            timestamp=Common.tofloat(record.header().datestamp())
+            identifier=record.header().identifier()
+            if(not record.header().isDeleted()):    #if resource new or updated
+                basename=record.resource()
+                self.logger.debug("basename %s identifier %s" % (basename,identifier))
+                if (identifier in self.oaimapping): # if update
+                    self._update_resource(basename,timestamp)
+                    self.logger.debug("updating basename: %s, timestamp %s" % (basename, timestamp))                    
+                else:                               # or create
+                    self.logger.debug("adding identifier: %s, basename %s, timestamp %s" % (identifier, basename, timestamp))                    
+                    self._create_resource(basename,identifier,timestamp)
+            elif(not init):
+                self.logger.debug("deleting identifier: %s, timestamp %s" % (identifier, timestamp))                    
+                self._delete_resource(identifier,timestamp)
+        
+    def updateCheck(self):
+        """Based on sleep_time and max_runs check on a given interval if the source has creations, updates, deletions"""
+        for i in range (self.config['max_runs']):
+            time.sleep(self.config['sleep_time'])
+            self.logger.debug("Start with %d. run to check for updates at OAI with checkdate: %s" % (i,self.lastcheckdate))
+            response_date=self.check(self.lastcheckdate)
+            if response_date is not None:
+                self.lastcheckdate=response_date
+            time.sleep(self.config['sleep_time'])
         
     def check(self,checkdate):
+        """check endpoint for new records
+        filters records whose responseDate is lower as the last checkdate
+        the filter is required since most endpoints work with finest granularity of days"""
         try:
+            self.logger.debug("Requesting new records with date: %s" % checkdate)
             for i,record in enumerate(self.client.listRecords(checkdate)): # limit to specific date
-                self.check_record(record)
+                if Common.datestamp_to_date(self.lastcheckdate)<=record.header().datestamp():
+                    self.check_record(record)
+                else:
+                    self.logger.debug("Record has datestamp:%s but checkdate: %s is higher" % (record.header().datestamp().strftime("%Y-%m-%dT%H:%M:%SZ"), self.lastcheckdate))
                 checkdate=record.responseDate()
             return checkdate
-        except Exception as e:
-            print "No new records found: %s" % e
+        except NoRecordsException as e:
+            print "No new records found: %s" % e            
              
-    def check_record(self,record,init=False):
-        if(record):# and re.match("(https?|ftp|file)://[-A-Za-z0-9+&@#/%?=~_|!:,.;]*[-A-Za-z0-9+&@#/%=~_|]",record[1].getField("identifier")[0])):
-                basename=self.get_identifier(record)        
-                timestamp=self.get_timestamp(record)
-                self.logger.debug("identifier: %s, timestamp %s" % (basename, timestamp))
-                identifier=record.header().identifier()
-                if(not record.header().isDeleted()):    #resource new or updated
-                    if (basename in self.oaimapping):
-                        self._update_resource(basename)
-                    else:
-                        self._create_resource(basename,identifier,timestamp)
-                elif(not init):
-                    self._delete_resource(identifier,timestamp)
         
-    def get_identifier(self,record):
-        return record.resource()
-                
-    def get_timestamp(self, record):
-        return time.mktime(record.header().datestamp().timetuple())
-        
+
     
     def __str__(self):
         """Prints out the source's resources"""

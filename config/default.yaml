@@ -9,6 +9,8 @@ source:
     event_types: [create, update, delete]
     average_payload: 1000
     max_events: -1
+    max_runs: 100
+    sleep_time: 5
 
 ##### Inventory Builder Implementations #####
 

@@ -6,7 +6,7 @@ pyoai.py: The class handling OAI-PMH data access and resource information extrac
 Created by Peter Kalchgruber on 2012-09-01.
 """
 
-from urllib2 import urlopen, HTTPError
+from urllib2 import urlopen, HTTPError, URLError
 from urllib import urlencode
 from xml.etree.ElementTree import  parse, ParseError, tostring
 import re
@@ -23,10 +23,13 @@ class Client(object):
         self.endpoint=endpoint
     
     def get_datestamp(self, datestring):
+        """return datestamp of datetime.datetime object"""
         return datestring.strftime("%Y-%m-%dT%H:%M:%SZ")
         
     def listRecords(self,afrom=None):
-        """lists Records with infos about resource"""
+        """generator who list Records with informations about resources
+        afrom can be datetime.datetime object or datestamp in format YYYY-MM-DDTHH:MM:SSZ
+        """
         if afrom:
             if type(afrom)==datetime.datetime:  #if not datestamp convert to datestamp
                 afrom=self.get_datestamp(afrom)
@@ -36,8 +39,31 @@ class Client(object):
             
         while True:
                 try:
-                    print self.endpoint+"?"+params
                     fh=urlopen(self.endpoint+"?"+params)
+                    etree=parse(fh)
+                    if (etree.getroot().tag == '{'+OAI_NS+"}OAI-PMH"): #check if it is an oai-pmh xml doc
+                        rdate=etree.find('{'+OAI_NS+"}responseDate").text
+                        for error in etree.findall('{'+OAI_NS+"}error"):
+                            raise NoRecordsException, (error.attrib['code'],error.text)
+                        listRecords=etree.find('{'+OAI_NS+"}ListRecords")
+                        for xmlrecords in listRecords.findall('{'+OAI_NS+"}record"):
+                                header_node=xmlrecords.find('{'+OAI_NS+"}header")
+                                header=self.buildHeader(header_node)
+                                metadata_node=xmlrecords.find('{'+OAI_NS+"}metadata")
+                                resource=None
+                                if metadata_node is not None:
+                                    resource=self.getIdentifier(metadata_node[0])
+                                yield Record(header,resource,rdate)
+                        if(listRecords.find('{'+OAI_NS+"}resumptionToken") is not None):
+                            rtoken=listRecords.find('{'+OAI_NS+"}resumptionToken").text
+                            params = re.sub("&resumptionToken=.*","",params)    #delete previous resumptionToken
+                            params += '&resumptionToken='+rtoken #add new resumptionToken
+                        else:
+                            break
+            
+                except URLError, e:
+                    raise URLError("While opening URL: %s with parameters %s an error turned up %s" % (self.endpoint, params, e))
+                    
                 except HTTPError, e:
                     if e.code == 503:
                         try:
@@ -52,27 +78,7 @@ class Client(object):
                             time.sleep(retry)
                     else:
                         raise IOError
-                try:
-                    etree=parse(fh)
-                    if (etree.getroot().tag == '{'+OAI_NS+"}OAI-PMH"): #check if it is an oai-pmh xml doc
-                        rdate=etree.find('{'+OAI_NS+"}responseDate").text
-                        for error in etree.findall('{'+OAI_NS+"}error"):
-                            raise Exception, error.attrib['code']+error.text
-                        listRecords=etree.find('{'+OAI_NS+"}ListRecords")
-                        for xmlrecords in listRecords.findall('{'+OAI_NS+"}record"):
-                                header_node=xmlrecords.find('{'+OAI_NS+"}header")
-                                header=self.buildHeader(header_node)
-                                metadata_node=xmlrecords.find('{'+OAI_NS+"}metadata")
-                                if metadata_node is not None:
-                                    resource=self.getIdentifier(metadata_node[0])
-                                yield Record(header,resource,rdate)
-                        if(listRecords.find('{'+OAI_NS+"}resumptionToken") is not None):
-                            rtoken=listRecords.find('{'+OAI_NS+"}resumptionToken").text
-                            params = re.sub("&resumptionToken=.*","",params)    #delete previous resumptionToken
-                            params += '&resumptionToken='+rtoken #add new resumptionToken
-                        else:
-                            break
-            
+                        
                 except AttributeError, e:
                      print "Attribute Error (xml?) %s" % e
                      
@@ -80,7 +86,7 @@ class Client(object):
                     print "ParseError %s" % e
                 
     def buildHeader(self,header_node):
-        """extract header information of header_node"""
+        """extract header information of header_node into Header object"""
         identifier=None
         datestamp=None
         isdeleted=None
@@ -88,7 +94,7 @@ class Client(object):
             if children.tag=='{'+OAI_NS+'}identifier':
                 identifier=children.text
             elif children.tag=='{'+OAI_NS+'}datestamp':
-                datestamp=self.datestamp_to_date(children.text)
+                datestamp=Common.datestamp_to_date(children.text)
         if header_node.attrib=={'status': 'deleted'}:
             isdeleted=True
         return Header(identifier,datestamp,isdeleted)
@@ -106,55 +112,89 @@ class Client(object):
                 return url.group()
         return None
     
-    def datestamp_to_date(self, datestamp):
-        parts = datestamp.split('T')
-        date, time = parts
-        time = time[:-1] # remove final Z
-        year, month, day = date.split('-')
-        hours, minutes, seconds = time.split(':')
-        return datetime.datetime(int(year), int(month), int(day), int(hours), int(minutes), int(seconds))
+
      
 class Record(object):
     """record about resource"""
+    
     def __init__(self,header,resource,response_date):
         self._header=header
         self._resource=resource
         self._response_date=response_date
         
     def header(self):
+        """header data about resource"""
         return self._header
     
     def resource(self):
+        """resource uri"""
         return self._resource
     
     def responseDate(self):
+        """response date of OAI-PMH endpoint of the response containing this record"""
         return self._response_date
     
     def __str__(self):
+        """Prints out Header, response date and resource uri """
         return "Header: {%s}, Resource: {%s}, Response-Date %s" % (self._header,self._resource, self._response_date)
 
         
 class Header(object):
     """header informations"""
-    def __init__(self,identifier,datestamp,isdeleted):
+    def __init__(self,identifier,datestamp,isdeleted=False):
         self._identifier = identifier
         self._datestamp = datestamp
         self._isdeleted = isdeleted
         
     def identifier(self):
+        """Identifier of record e.g. oai:eprints.org:3218"""
         return self._identifier
     
     def datestamp(self):
+        """datestamp in format datetime.datetime"""
         return self._datestamp
 
     def isDeleted(self):
+        """status of record, set True if it is deleted"""
         return self._isdeleted
     
     def __str__(self):
+        """Prints out the Header attributes"""
         return "identifier: %s, datestamp %s, isDeleted: %s" % (self._identifier, self._datestamp, self._isdeleted)
 
+import time
+import urllib
+class Common(object):
+    """containing common used functions"""
+    
+    @staticmethod
+    def datestamp_to_date(datestamp):
+        """converts datestamp in format YYYY-MM-DDTHH:MM:SSZ into datetime.datetime object"""
+        parts = datestamp.split('T')
+        date, time = parts
+        time = time[:-1] # remove final Z
+        year, month, day = date.split('-')
+        hours, minutes, seconds = time.split(':')
+        return datetime.datetime(int(year), int(month), int(day), int(hours), int(minutes), int(seconds)) 
+        
+    @staticmethod
+    def tofloat(thedate):
+        """convert datetime.datetime to float value"""
+        return time.mktime(thedate.timetuple())
+    
+    @staticmethod
+    def get_size(basename):
+        """download header of basename and returns size in Bytes"""
+        url_metadata=urllib.urlopen(basename).info()
+        if len(url_metadata.getheaders("Content-Length"))>0:
+            return url_metadata.getheaders("Content-Length")[0]
+        return -1
+
+class NoRecordsException(Exception):
+    pass
+
 def main():
-    client=Client("http://eprints.mminf.univie.ac.at/cgi/oai2")  
+    client=Client("http://eprinhts.mminf.univie.ac.at/cgi/oai2")  
   #  client=Client("http://localhost/test.php")  
     #client=Client("http://export.arxiv.org/oai2")
 #   client=Client("http://eprints.mminf.univie.ac.at/cgi/oai2?verb=ListRecords&metadataPrefix=oai_dc&from=2012-08-01")  
@@ -162,10 +202,6 @@ def main():
 
     for i,y in enumerate(client.listRecords("2013-08-02T01:01:01Z")):
         print i,y
-    # während loop werden neue noch aufgenommen.
-    #for y in x.records:
-    #    print y
-    
           
         
 if __name__ == '__main__':
