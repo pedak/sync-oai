@@ -3,13 +3,8 @@
 ##### Source Configuration #####
 
 source:
-    name: ResourceSync Simulator
+    name: ResourceSync OAI-Adapter
     endpoint: http://eprints.mminf.univie.ac.at/cgi/oai2
-    number_of_resources: 10000
-    change_delay: 2
-    event_types: [create, update, delete]
-    average_payload: 1000
-    max_events: -1
     max_runs: 100
     sleep_time: 5
 
