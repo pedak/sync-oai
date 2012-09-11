@@ -1,11 +1,9 @@
 #!/usr/bin/env python
 # encoding: utf-8
 """
-simulate-source: The ResourceSync command line tool for simulating a changing
-Web data source.
+simulate-oai-adapter: The ResourceSync command line tool for OAI-PMH synchronization.
 
-Created by Bernhard Haslhofer on 2012-04-24.
-Copyright 2012, ResourceSync.org. All rights reserved.
+Created by Peter Kalchgruber on 2012-09-01.
 """
 
 import argparse
@@ -25,10 +23,10 @@ def main():
     
     # Define simulator options
     parser = argparse.ArgumentParser(
-                            description = "ResourceSync Source Simulator")
+                            description = "ResourceSync OAIPMH-Adapter")
     parser.add_argument('--config-file', '-c', 
                     default=DEFAULT_CONFIG_FILE,
-                    help="the simulation configuration file")
+                    help="the adapter configuration file")
     parser.add_argument('--log-config', '-l',
                     default=DEFAULT_LOG_FILE,
                     help="the logging configuration file")
@@ -37,7 +35,7 @@ def main():
                     help="the HTTP interface port")
     parser.add_argument('--hostname', '-n',
                     default="localhost",
-                    help="the hostname where the simulator is running")
+                    help="the hostname where the adapter is running")
     
     # Parse command line arguments
     args = parser.parse_args()

@@ -31,12 +31,9 @@ from resync.inventory import Inventory
 from resync.sitemap import Sitemap, Mapper
 
 ##oai
-# from pyoai.client import Client
-# from pyoai.metadata import MetadataRegistry, oai_dc_reader
-# from pyoai.error import NoRecordsMatchError
-from pyoaipmh.pyoai import Client, Header, Record, Common, NoRecordsException
+from pyoaipmh.pyoai import Client, Header, Record, NoRecordsException
+from pyoaipmh.common import Common
 import datetime
-import urllib
 from urllib2 import URLError
 
 #### Source-specific capability implementations ####
@@ -307,14 +304,6 @@ class Source(Observable):
         if number > len(self._repository):
             number = len(self._repository)
         rand_basenames = random.sample(self._repository.keys(), number)
-        print "x"
-        print self._repository.keys()
-        print "y"
-        print rand_basenames
-        print "z"
-        for basename in rand_basenames:
-            print self.resource(basename)
-        print "a"
         return [self.resource(basename) for basename in rand_basenames]
         
     def simulate_changes(self):
