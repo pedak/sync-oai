@@ -25,7 +25,7 @@ loggers:
     propagate: no
   sitemap:
     level: INFO
-    handlers: [console]
+    handlers: [file]
     propagate: no
   http:
     level: INFO
@@ -33,7 +33,7 @@ loggers:
     propagate: no
   changememory:
     level: INFO
-    handlers: [console]
+    handlers: [file]
     propagate: no
 root:
   level: INFO

@@ -1,5 +1,5 @@
 import hashlib
-import urllib2
+from urllib2 import urlopen, URLError
 
 def compute_md5_for_string(string):
     """Compute MD5 digest over some string payload"""
@@ -23,12 +23,16 @@ def compute_md5_for_file(file, block_size=2**14):
 def compute_md5_for_url(url):
     """Compute MD5 digest for a remote resource
     """
-    f = urllib2.urlopen(url)
-    md5 = hashlib.md5()
-    while True:
-        data = f.read(2048)
-        if not data:
-            break
-        md5.update(data)
-    return md5.hexdigest()
+    try:
+        f = urlopen(url)
+        md5 = hashlib.md5()
+        while True:
+            data = f.read(2048)
+            if not data:
+                break
+            md5.update(data)
+        return md5.hexdigest()
+    except URLError, e:
+        print "URLError at downloading %s for creation of md5 digest %s" % (url,e)
+        return -1
 #oai

@@ -12,7 +12,8 @@ from xml.etree.ElementTree import  parse, ParseError, tostring
 from time import sleep
 import re
 import datetime
-
+import time
+from dateutil import parser as dateutil_parser
 from common import Common
 
 OAI_NS="http://www.openarchives.org/OAI/2.0/"
@@ -23,18 +24,62 @@ class Client(object):
     
     def __init__(self,endpoint):
         self.endpoint=endpoint
-    
-    def get_datestamp(self, datestring):
-        """return datestamp of datetime.datetime object"""
-        return datestring.strftime("%Y-%m-%dT%H:%M:%SZ")
+        self.granularity=None
         
+    def get_date(self, datestring):
+        """return datestamp of datetime.datetime object"""
+        if self.granularity=="date":
+            return datestring.strftime("%Y-%m-%d")
+        else:
+            return datestring.strftime("%Y-%m-%dT%H:%M:%SZ")
+    
+    def setGranularity(self):
+        """set granularity to source granularity"""
+        try:
+            params = urlencode({'verb': 'Identify'})
+            fh=urlopen(self.endpoint+"?"+params)
+            etree=parse(fh)
+            if (etree.getroot().tag == '{'+OAI_NS+"}OAI-PMH"): #check if it is an oai-pmh xml doc
+                identify_node=etree.find('{'+OAI_NS+"}Identify")
+                granularity=identify_node.find('{'+OAI_NS+"}granularity").text
+                if len(granularity)>10:
+                    self.granularity="dateandtime"
+                else:
+                    self.granularity="date"
+        except URLError, e:
+            raise URLError("While opening URL: %s with parameters %s an error turned up %s" % (self.endpoint, params, e))
+            
+        except HTTPError, e:
+            if e.code == 503:
+                try:
+                    retry = int(e.hdrs.get('Retry-After'))
+                except TypeError:
+                    retry = None
+                if retry is None:
+                    print "503-error without specification of time. Waiting 10 seconds"
+                    time.sleep(10) #defaul sleep time
+                else:
+                    print "503-error waiting %s seconds" % retry
+                    time.sleep(retry)
+            else:
+                raise IOError
+                
+        except AttributeError, e:
+             print "Attribute Error (xml?) %s" % e
+             
+        except ParseError, e:
+            print "ParseError %s" % e
+    
     def listRecords(self,afrom=None):
         """generator who list Records with informations about resources
         afrom can be datetime.datetime object or datestamp in format YYYY-MM-DDTHH:MM:SSZ
         """
         if afrom:
             if type(afrom)==datetime.datetime:  #if not datestamp convert to datestamp
-                afrom=self.get_datestamp(afrom)
+                if self.granularity is None:
+                    self.setGranularity()
+                afrom=self.get_date(afrom)
+                
             params = urlencode({'verb': 'ListRecords', 'metadataPrefix': 'oai_dc', "from": afrom})
         else:
             params = urlencode({'verb': 'ListRecords', 'metadataPrefix': 'oai_dc'})
@@ -44,7 +89,7 @@ class Client(object):
                     fh=urlopen(self.endpoint+"?"+params)
                     etree=parse(fh)
                     if (etree.getroot().tag == '{'+OAI_NS+"}OAI-PMH"): #check if it is an oai-pmh xml doc
-                        rdate=etree.find('{'+OAI_NS+"}responseDate").text
+                        rdate=dateutil_parser.parse(etree.find('{'+OAI_NS+"}responseDate").text)
                         for error in etree.findall('{'+OAI_NS+"}error"):
                             raise NoRecordsException, (error.attrib['code'],error.text)
                         listRecords=etree.find('{'+OAI_NS+"}ListRecords")
@@ -63,9 +108,7 @@ class Client(object):
                         else:
                             break
             
-                except URLError, e:
-                    raise URLError("While opening URL: %s with parameters %s an error turned up %s" % (self.endpoint, params, e))
-                    
+                     
                 except HTTPError, e:
                     if e.code == 503:
                         try:
@@ -73,10 +116,10 @@ class Client(object):
                         except TypeError:
                             retry = None
                         if retry is None:
-                            print "503-error waiting 10 seconds"
+                            print "503-error without specification of time. Waiting 10 seconds"
                             time.sleep(10) #defaul sleep time
                         else:
-                            print "503-error waiting %s seconds" % retry
+                            print "503-error waiting the suggested %s seconds" % retry
                             time.sleep(retry)
                     else:
                         raise IOError
@@ -87,6 +130,9 @@ class Client(object):
                 except ParseError, e:
                     print "ParseError %s" % e
                 
+                except URLError, e:
+                    raise URLError("While opening URL: %s with parameters %s an error turned up %s" % (self.endpoint, params, e))
+                
     def buildHeader(self,header_node):
         """extract header information of header_node into Header object"""
         identifier=None
@@ -96,7 +142,7 @@ class Client(object):
             if children.tag=='{'+OAI_NS+'}identifier':
                 identifier=children.text
             elif children.tag=='{'+OAI_NS+'}datestamp':
-                datestamp=Common.datestamp_to_date(children.text)
+                datestamp=dateutil_parser.parse(children.text)
         if header_node.attrib=={'status': 'deleted'}:
             isdeleted=True
         return Header(identifier,datestamp,isdeleted)
