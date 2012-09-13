@@ -118,6 +118,7 @@ def main():
                    help="this help")
 
     (args, map) = p.parse_args()
+    print map
 
     # Implement exclusive arguments and default --sync (current support for exclusive
     # groups in argparse is incomplete)

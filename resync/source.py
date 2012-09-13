@@ -273,6 +273,7 @@ class Source(Observable):
         timestamp = self._repository[basename]['timestamp']
         size = self._repository[basename]['size']
         md5=-1
+        #DEBUG how to calculate md5
         #if size>0:
             #md5 = compute_md5_for_url(basename) #oai (will be called on every sitemap generation)
         return Resource(uri = uri, timestamp = timestamp, size = size,
@@ -299,7 +300,8 @@ class Source(Observable):
     
     def _create_resource(self, basename = None, identifier = None, timestamp=time.time(), notify_observers = True):
         """Create a new resource, add it to the source, notify observers."""
-        size=Common.get_size(basename)
+        #size=Common.get_size(basename) -> causes block on bigger sites DEBUG
+        size=-1
         self._repository[basename] = {'timestamp': timestamp, 'size': size}
         # write local mapping file: oai-identifier, basename mapping
         self.oaimapping[identifier]=basename;
@@ -310,7 +312,8 @@ class Source(Observable):
         
     def _update_resource(self, basename, timestamp):
         """Update a resource, notify observers."""
-        size=Common.get_size(basename)
+        # size=Common.get_size(basename) -> causes block on bigger sites DEBUG
+        size=-1
         self._repository[basename] = {'timestamp': timestamp, 'size': size}
         change = ResourceChange(
                     resource = self.resource(basename),
@@ -337,10 +340,12 @@ class Source(Observable):
         self.logger.debug("Connection to OAI-Endpoint %s" % endpoint)
         self.client=Client(endpoint)
         try:
+            j=0
             for i,record in enumerate(self.client.listRecords(startdate)):
                 self.process_record(record,init=True)
                 self.lastcheckdate=record.responseDate()
-            self.logger.info("Finished adding  %d initial resources with checkdate: %s" % (i,self.lastcheckdate))
+                j=i
+            self.logger.info("Finished adding  %d initial resources with checkdate: %s" % (j,self.lastcheckdate))
         except URLError, e:
             print "URLError: %s" % (e)
         except NoRecordsException as e:
@@ -353,12 +358,11 @@ class Source(Observable):
         identifier=record.header().identifier()
         if(not record.header().isDeleted()):    #if resource new or updated
             basename=record.resource()
-            self.logger.debug("basename %s identifier %s" % (basename,identifier))
             if (identifier in self.oaimapping): # if update
-                self.logger.debug("updating resource: basename: %s, timestamp %s" % (basename, timestamp))                    
+                self.logger.debug("updating resource: identifier: %s basename: %s, timestamp %s" % (identifier, basename, timestamp))                    
                 self._update_resource(basename,timestamp)
             else:                               # or create
-                self.logger.debug("adding recourde: identifier: %s, basename %s, timestamp %s" % (identifier,
+                self.logger.debug("adding ressource: identifier: %s, basename %s, timestamp %s" % (identifier,
                                 basename, timestamp))                    
                 self._create_resource(basename,identifier,timestamp)
         elif(not init):

@@ -120,7 +120,9 @@ class Client(object):
                             time.sleep(10) #defaul sleep time
                         else:
                             print "503-error waiting the suggested %s seconds" % retry
-                            time.sleep(retry)
+                            for x in range(retry):
+                                time.sleep(1)
+                                print (x+1)
                     else:
                         raise IOError
                         
@@ -149,6 +151,7 @@ class Client(object):
     
     def getIdentifier(self,metadata_node):
         """extract resource information of metadata_node"""
+        #DEBUG which url to use
         identifiers=[]
         for children in metadata_node.findall('{'+DC_NS+'}identifier'):
             identifiers.append(children.text)
@@ -217,10 +220,6 @@ class NoRecordsException(Exception):
 
 def main():
     client=Client("http://eprints.mminf.univie.ac.at/cgi/oai2")  
-  #  client=Client("http://localhost/test.php")  
-    #client=Client("http://export.arxiv.org/oai2")
-#   client=Client("http://eprints.mminf.univie.ac.at/cgi/oai2?verb=ListRecords&metadataPrefix=oai_dc&from=2012-08-01")  
-    #x=client.listRecords("2012-09-02")
 
     for i,y in enumerate(client.listRecords("2013-08-02T01:01:01Z")):
         print i,y
