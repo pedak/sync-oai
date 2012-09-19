@@ -5,7 +5,7 @@
   
 <ul class="archive">
   {% for resource in resources %}
-    <li><a href="{{ resource.basename }}">
+    <li><a href="{{ resource.uri }}">
       {{ resource.uri }}</a></li>      
   {% end %}
 </ul>
