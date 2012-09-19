@@ -340,6 +340,7 @@ class Source(Observable):
         self._repository[basename] = {'timestamp': timestamp, 'size': size}
         change = ResourceChange(resource = self.resource(basename),
                                 changetype = "CREATED")
+        self.oaimapping[identifier]=basename;                        
         if notify_observers:
             self.notify_observers(change)
             self.logger.debug("Event: %s" % repr(change))
@@ -352,7 +353,7 @@ class Source(Observable):
         self._repository[basename] = {'timestamp': timestamp, 'size': size}
         change = ResourceChange(
                     resource = self.resource(basename),
-                    changetype = "UPDATE")
+                    changetype = "UPDATED")
         self.notify_observers(change)
         self.logger.debug("Event: %s" % repr(change))
 
