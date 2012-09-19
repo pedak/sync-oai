@@ -1,8 +1,8 @@
 # ResourceSync OAI-Adapter
 
-The ResourceSync OAI-Adapter propagates changing via the resync /protocollinfrastructure.
+The ResourceSync Simulator simulates a changing Web data source.
 
-A client is provided to synchronize a filesystem directory with the resources.
+A client is provided to synchronize a filesystem directory with the simulated resources.
 
 ## Quick start
 
@@ -19,12 +19,12 @@ Install the [Tornado](http://www.tornadoweb.org/) and [SleekXMPP](https://github
     
 Get the ResourceSync Simulator from [Github](http://www.github.com/behas/resync-simulator):
 
-    git clone git://github.com/pedak/sync-oai.git
+    git clone git://github.com/resync/simulator.git
     
-Run the source oai-adapter (with the default configuration in /config/default.yaml):
+Run the source simulator (with the default configuration in /config/default.yaml):
     
-    chmod u+x oai-adapter
-    ./oai-adapter
+    chmod u+x simulate-source
+    ./simulate-source
 
 Run the resync client against the simulated source
 
@@ -35,29 +35,29 @@ Terminate the source simulator:
 
     CTRL-C
 
-
 ## How to define parameterized use cases
 
-Parameterized Use Cases can be defined by creating a [YAML](http://www.yaml.org/) configuration file (e.g., example.yaml) and defining a set of parameters:
+Parameterized Use Cases can be defined by creating a [YAML](http://www.yaml.org/) configuration file (e.g., simulation1.yaml) and defining a set of parameters:
 
-
-source:
-    name: ResourceSync OAI-Adapter
-    endpoint: http://eprints.mminf.univie.ac.at/cgi/oai2
-    max_runs: 100
-    sleep_time: 5
+    source:
+        name: ResourceSync Simulator
+        number_of_resources: 1000
+        change_delay: 2
+        event_types: [create, update, delete]
+        average_payload: 1000
+        max_events: -1
+        stats_interval: 10
         
 Additional **inventory**, **publisher**, and **change memory** implementations
 can be attached for simulation purposes. For instance, the following configuration attaches a change memory implemented in the DynamicChangeSet class.
 
-    inventory:
-        class: StaticSourceInventory
-        max_sitemap_entries: 500
-        interval: 15
+    inventory_builder:
+        class: DynamicInventoryBuilder
         uri_path: sitemap.xml
 
     changememory:
         class: DynamicChangeSet
-        uri_path: /changes
-
+        uri_path: changeset
+        max_changes: 1000
+            
 See the examples in the **/config** directory for further details.

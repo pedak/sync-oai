@@ -11,6 +11,7 @@ import os
 import os.path
 import re
 import time
+import logging
 from urllib import URLopener
 from xml.etree.ElementTree import parse
 
@@ -21,7 +22,7 @@ from digest import compute_md5_for_file
 
 class InventoryBuilder():
 
-    def __init__(self, do_md5=False, do_size=True, verbose=False, mapper=None):
+    def __init__(self, do_md5=False, do_size=True, mapper=None):
         """Create InventoryBuilder object, optionally set options
 
         Optionaly sets the following attributes:
@@ -34,38 +35,26 @@ class InventoryBuilder():
         self.exclude_files = ['sitemap\d{0,5}.xml']
         self.exclude_dirs = ['CVS','.git']
         self.include_symlinks = False
-        self.verbose = verbose
-        # Information collected for logging
-        self.content_length = None
+        # Used internally only:
+        self.logger = logging.getLogger('inventory_builder')
+        self.compiled_exclude_files = []
+
+    def add_exclude_files(self, exclude_patterns):
+        """Add more patterns of files to exclude while building inventory"""
+        for pattern in exclude_patterns:
+            self.exclude_files.append(pattern)
+
+    def compile_excludes(self):
+        self.compiled_exclude_files = []
+        for pattern in self.exclude_files:
+            self.compiled_exclude_files.append(re.compile(pattern))
 
     def exclude_file(self, file):
-        """True if file should be exclude based on name pattern
-        """
-        #FIXME: compile patterns and store persistently
-        for pattern in self.exclude_files:
-            if (re.match(pattern, file)):
+        """True if file should be exclude based on name pattern"""
+        for pattern in self.compiled_exclude_files:
+            if (pattern.match(file)):
                 return(True)
         return(False)
-
-    def get(self,url,inventory=None):
-        """Get a inventory from url
-
-        Will either create a new Inventory object or add to one supplied.
-        """
-        # Either use inventory passed in or make a new one
-        if (inventory is None):
-            inventory = Inventory()
-
-        inventory_fh = URLopener().open(url)
-        try:
-            self.content_length = inventory_fh.info()['Content-Length']
-        except KeyError:
-            # If we don't get a length then c'est la vie. This does
-            # work fine for local files
-            pass
-        Sitemap().inventory_parse_xml(fh=inventory_fh, inventory=inventory)
-        return(inventory)
-
 
     def from_disk(self,inventory=None):
         """Create or extend inventory with resources from disk scan
@@ -85,10 +74,11 @@ class InventoryBuilder():
         # Either use inventory passed in or make a new one
         if (inventory is None):
             inventory = Inventory()
+        # Compile exclude pattern matches
+        self.compile_excludes()
         # Run for each map in the mappings
         for map in self.mapper.mappings:
-            if (self.verbose):
-                print "InventoryBuilder.from_disk: doing %s" % (str(map))
+            self.logger.info("Scanning disk for %s" % (str(map)))
             self.from_disk_add_map(inventory=inventory, map=map)
         return(inventory)
 
@@ -103,10 +93,11 @@ class InventoryBuilder():
         for dirpath, dirs, files in os.walk(path,topdown=True):
             for file_in_dirpath in files:
 		num_files+=1
-		if ((num_files%50000 == 0) and self.verbose):
-		    print "InventoryBuilder.from_disk_add_map: %d files..." % (num_files)
+		if (num_files%50000 == 0):
+		    self.logger.info("InventoryBuilder.from_disk_add_map: %d files..." % (num_files))
                 try:
                     if self.exclude_file(file_in_dirpath):
+                        self.logger.debug("Excluding file %s" % (file_in_dirpath))
                         continue
                     # get abs filename and also URL
                     file = os.path.join(dirpath,file_in_dirpath)
@@ -131,5 +122,6 @@ class InventoryBuilder():
             # prune list of dirs based on self.exclude_dirs
             for exclude in self.exclude_dirs:
                 if exclude in dirs:
+                    self.logger.debug("Excluding dir %s" % (exclude))
                     dirs.remove(exclude)
         return(inventory)

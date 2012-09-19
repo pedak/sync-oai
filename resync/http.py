@@ -55,6 +55,7 @@ class HTTPInterface(threading.Thread):
                                 dict(path = self.settings['static_path'])),
         ]
         
+        """Initialize inventory handlers"""
         if self.source.has_inventory_builder:
             inventory_builder = self.source.inventory_builder
             if inventory_builder.config['class'] == "DynamicInventoryBuilder":
@@ -68,15 +69,26 @@ class HTTPInterface(threading.Thread):
                         tornado.web.StaticFileHandler,
                         dict(path = self.settings['static_path']))]
         
+        """Initialize changememory handlers"""
         if self.source.has_changememory:
-            self.handlers = self.handlers + \
-                [(r"/%s" % self.source.changememory.uri_path, 
-                    DynamicChangeSetHandler,
-                    dict(changememory = self.source.changememory)),
-                (r"/%s/from/([0-9]+)" % self.source.changememory.uri_path,
-                    DynamicChangeSetDiffHandler,
-                    dict(changememory = self.source.changememory))]
-            
+            changememory = self.source.changememory
+            if changememory.config['class'] == "DynamicChangeSet":
+                self.handlers = self.handlers + \
+                    [(r"/%s" % changememory.uri_path, 
+                        DynamicChangeSetHandler,
+                        dict(changememory = changememory)),
+                    (r"/%s/from/([0-9]+)" % changememory.uri_path,
+                        DynamicChangeSetDiffHandler,
+                        dict(changememory = changememory))]
+            elif changememory.config['class'] == "StaticChangeSet":
+                self.handlers = self.handlers + \
+                    [(r"/%s/%s" % (changememory.uri_path, 
+                                    changememory.uri_file), 
+                        StaticChangeSetHandler,
+                        dict(changememory = changememory)),
+                    (r"/%s/(changeset\d*\.xml)" % changememory.uri_path,
+                        tornado.web.StaticFileHandler,
+                        dict(path = self.settings['static_path']))]
     
     def run(self):
         self.logger.info("Starting up HTTP Interface on port %i" % (self.port))
@@ -116,7 +128,8 @@ class HomeHandler(BaseRequestHandler):
 class ResourceListHandler(BaseRequestHandler):
     """Resource list selection handler"""
     def get(self):
-        rand_res = sorted(self.source.random_resources(100))
+        rand_res = sorted(self.source.random_resources(100), 
+            key = lambda res: int(res.basename))
         self.render("resource.index.html", resources = rand_res)
                         
 
@@ -144,26 +157,24 @@ class InventoryHandler(tornado.web.RequestHandler):
     
     def generate_sitemap(self):
         """Creates a sitemap inventory"""
-        #inventory = self.inventory_builder.generate()
-        #return Sitemap().resources_as_xml(inventory)
-        return null
+        inventory = self.inventory_builder.generate()
+        return Sitemap().resources_as_xml(inventory,
+                                        capabilities=inventory.capabilities)
     
     def get(self):
-        self.write(self)
-        #print self
-        #self.set_header("Content-Type", "application/xml")
-        #self.write(self.generate_sitemap())
+        self.set_header("Content-Type", "application/xml")
+        self.write(self.generate_sitemap())
 
 # Changememory Handlers
 
 class DynamicChangeSetHandler(tornado.web.RequestHandler):
-    """The HTTP request handler for the DynamicDigest"""
+    """The HTTP request handler for dynamically generated changesets"""
 
     def initialize(self, changememory):
         self.changememory = changememory
     
     def generate_changeset(self, changeid=None):
-        """Creates a changeset from the whole changememory"""
+        """Serialize the changes in the changememory"""
         changeset = self.changememory.generate(from_changeid=changeid)
         return Sitemap().resources_as_xml(changeset)
     
@@ -172,14 +183,28 @@ class DynamicChangeSetHandler(tornado.web.RequestHandler):
         self.write(self.generate_changeset())
 
 class DynamicChangeSetDiffHandler(DynamicChangeSetHandler):
-    """The HTTP request handler for the DynamicDigest"""
+    """The HTTP request handler for the dynamically generated sub-changesets"""
+    
+    def write_error(self, status_code, **kwargs):
+        self.write("Error %d - %s" % (status_code, kwargs['message']))
     
     def get(self, changeid):
         changeid = int(changeid)
-        if changeid > self.changememory.latest_change_id:
-            self.send_error(status_code = 404)
-        elif not self.changememory.knows_changeid(changeid):
-            self.send_error(status_code = 410)
-        else:
-            self.set_header("Content-Type", "application/xml")
-            self.write(self.generate_changeset(changeid=changeid))
+        self.set_header("Content-Type", "application/xml")
+        self.write(self.generate_changeset(changeid=changeid))
+            
+class StaticChangeSetHandler(tornado.web.RequestHandler):
+    """The HTTP request handler for static changesets"""
+    
+    def initialize(self, changememory):
+        self.changememory = changememory
+        
+    def generate_changeset(self):
+        "Serialize the changes in the changememory"
+        changeset = self.changememory.generate()
+        return Sitemap().resources_as_xml(changeset, 
+                                        capabilities=changeset.capabilities)
+    
+    def get(self):
+        self.set_header("Content-Type", "application/xml")
+        self.write(self.generate_changeset())

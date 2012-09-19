@@ -64,6 +64,7 @@ class DynamicInventoryBuilder(object):
     
     def generate(self):
         """Generates an inventory (snapshot from the source)"""
+        then = time.time()
         self.logger.debug("Start inventory generation")
         capabilities = {}
         if self.source.has_changememory:
@@ -71,7 +72,8 @@ class DynamicInventoryBuilder(object):
             capabilities[next_changeset] = {"type": "changeset"}
         inventory = Inventory(resources=self.source.resources,
                               capabilities=capabilities)
-        self.logger.debug("Finished inventory generation")
+        now = time.time()
+        self.logger.info("Generated inventory: %f" % (now-then))
         return inventory
         
 class StaticInventoryBuilder(DynamicInventoryBuilder):
@@ -116,6 +118,7 @@ class StaticInventoryBuilder(DynamicInventoryBuilder):
         self.source.notify_observers(sm_write_start)
         
         # Generate sitemap in temp directory
+        then = time.time()
         self.ensure_temp_dir(Source.TEMP_FILE_PATH)
         inventory = self.generate()
         basename = Source.TEMP_FILE_PATH + "/sitemap.xml"
@@ -127,14 +130,17 @@ class StaticInventoryBuilder(DynamicInventoryBuilder):
         self.rm_sitemap_files(Source.STATIC_FILE_PATH)
         self.mv_sitemap_files(Source.TEMP_FILE_PATH, Source.STATIC_FILE_PATH)
         shutil.rmtree(Source.TEMP_FILE_PATH)
+        now = time.time()
         # Log Sitemap create start event
         sitemap_size = self.compute_sitemap_size(Source.STATIC_FILE_PATH)
-        self.logger.info("Finished writing Sitemap inventory")
+        log_data = {'time': (now-then), 
+                    'no_resources': self.source.resource_count}
+        self.logger.info("Wrote static sitemap inventory. %s" % log_data)
         sm_write_end = ResourceChange(
                 resource = ResourceChange(self.uri, 
                                 size=sitemap_size,
-                                timestamp=time.time()),
-                                changetype = "SITEMAP UPDATE END")
+                                timestamp=then),
+                                changetype = "UPDATED")
         self.source.notify_observers(sm_write_end)
         
     def ensure_temp_dir(self, temp_dir):
@@ -196,11 +202,11 @@ class Source(Observable):
         self._repository = {} # {basename, {timestamp, size}}
         self.inventory_builder = None # The inventory builder implementation
         self.changememory = None # The change memory implementation
+        self.no_events = 0
         self.oaimapping = {} #oai
         self.client=None #oai
         self.lastcheckdate=dateutil_parser.parse(config['fromdate'].strftime("%Y-%m-%d %H:%SZ")) #oai
     
-
     ##### Source capabilities #####
     
     def add_inventory_builder(self, inventory_builder):
@@ -222,16 +228,15 @@ class Source(Observable):
         return bool(self.changememory is not None)
     
     ##### Bootstrap Source ######
-    
+
     def bootstrap(self):
         """Bootstrap the source with a set of resources"""
         self.logger.info("Bootstrapping source")
         
         if self.has_changememory: self.changememory.bootstrap()
         if self.has_inventory_builder: self.inventory_builder.bootstrap()
-
+        self._log_stats()
     
-
     ##### Source data accessors #####
     
     @property
@@ -247,13 +252,13 @@ class Source(Observable):
     @property
     def resources(self):
         """Iterates over resources and yields resource objects"""
-        repository = self._repository
-        for basename in repository.keys():
+        for basename in self._repository.keys():
             resource = self.resource(basename)
             if resource is None:
                 self.logger.error("Cannot create resource %s " % basename + \
                       "because source object has been deleted.")
-            yield resource
+            else:
+                yield resource
     
     @property
     def random_resource(self):
@@ -294,8 +299,38 @@ class Source(Observable):
             number = len(self._repository)
         rand_basenames = random.sample(self._repository.keys(), number)
         return [self.resource(basename) for basename in rand_basenames]
-        
-       
+    
+    def simulate_changes(self):
+        """Simulate changing resources in the source"""
+        self.logger.info("Starting simulation...")
+        sleep_time = self.config['change_delay']
+        while self.no_events != self.config['max_events']:
+            time.sleep(sleep_time)
+            event_type = random.choice(self.config['event_types'])
+            if event_type == "create":
+                self._create_resource()
+            elif event_type == "update" or event_type == "delete":
+                if len(self._repository.keys()) > 0:
+                    basename = random.sample(self._repository.keys(), 1)[0]
+                else:
+                    basename = None
+                if basename is None: 
+                    self.no_events = self.no_events + 1                    
+                    continue
+                if event_type == "update":
+                    self._update_resource(basename)
+                elif event_type == "delete":
+                    self._delete_resource(basename)
+
+            else:
+                self.logger.error("Event type %s is not supported" 
+                                                                % event_type)
+            self.no_events = self.no_events + 1
+            if self.no_events%self.config['stats_interval'] == 0:
+                self._log_stats()
+
+        self.logger.info("Finished change simulation")
+    
     # Private Methods
     
     def _create_resource(self, basename = None, identifier = None, timestamp=time.time(), notify_observers = True):
@@ -303,12 +338,12 @@ class Source(Observable):
         #size=Common.get_size(basename) -> causes block on bigger sites DEBUG
         size=-1
         self._repository[basename] = {'timestamp': timestamp, 'size': size}
-        # write local mapping file: oai-identifier, basename mapping
-        self.oaimapping[identifier]=basename;
-        change = ResourceChange(
-            resource = self.resource(basename),
-            changetype = "CREATE")
-        self.notify_observers(change)
+        change = ResourceChange(resource = self.resource(basename),
+                                changetype = "CREATED")
+        if notify_observers:
+            self.notify_observers(change)
+            self.logger.debug("Event: %s" % repr(change))
+        return change
         
     def _update_resource(self, basename, timestamp):
         """Update a resource, notify observers."""
@@ -319,6 +354,7 @@ class Source(Observable):
                     resource = self.resource(basename),
                     changetype = "UPDATE")
         self.notify_observers(change)
+        self.logger.debug("Event: %s" % repr(change))
 
     def _delete_resource(self, identifier, timestamp, notify_observers = True):
         """Delete a given resource, notify observers."""
@@ -328,10 +364,9 @@ class Source(Observable):
         del self.oaimapping[identifier]
         res.timestamp = timestamp
         if notify_observers:
-            change = ResourceChange(
-                        resource = res,
-                        changetype = "DELETE")
+            change = ResourceChange(resource = res, changetype = "DELETED")
             self.notify_observers(change)
+            self.logger.debug("Event: %s" % repr(change))
     
     def bootstrap_oai(self,endpoint,startdate=None): #todo update granularity
         """bootstraps OAI-PMH Source"""
@@ -351,6 +386,13 @@ class Source(Observable):
         except NoRecordsException as e:
             print "No new records found: %s" % e 
         self.check_for_updates()
+    def _log_stats(self):
+        """Log current source statistics"""
+        stats = {
+            'no_resources': self.resource_count,
+            'no_events': self.no_events
+        }
+        self.logger.info("Source stats: %s" % stats)
     
     def process_record(self,record,init=False):
         """reads record, extract and returns record with information about (resource uri, timestamp, identifier)"""

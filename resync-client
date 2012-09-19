@@ -5,9 +5,51 @@ resync-client: The ResourceSync command line client
 Created by Simeon Warner on 2012-04...
 """
 
+import logging
+import logging.config
 import optparse
+import sys
 
 from resync.client import Client, ClientFatalError
+from resync.util import UTCFormatter
+
+CLIENT_LOG_FILE = 'resync-client.log'
+
+def init_logging(file=False, human=True, verbose=False, eval_mode=False):
+    """Initialize logging
+
+    Use of log levels:
+    DEBUG - very verbose, for evaluation of output (-e)
+    INFO - verbose, only seen by users if they ask for it (-v)
+    WARNING - messages output messages to console
+    """
+    
+    fmt = '%(asctime)s | %(name)s | %(levelname)s | %(message)s'
+    formatter = UTCFormatter(fmt)
+    
+    if human:
+        # Create a special handler designed just for human readable output
+        hh = logging.StreamHandler()
+        hh.setLevel( logging.INFO if (verbose) else logging.WARNING )
+        hh.setFormatter(logging.Formatter(fmt='%(message)s'))
+    if file:
+        fh = logging.FileHandler(filename=CLIENT_LOG_FILE, mode='a')
+        fh.setFormatter(formatter)
+        fh.setLevel( logging.DEBUG if (eval_mode) else logging.INFO )
+
+    loggers = ['client','inventory_builder','sitemap']
+    for logger in loggers:
+        log = logging.getLogger(logger)
+        log.setLevel(logging.DEBUG) #control at handler instead
+        if human:
+            log.addHandler(hh)
+        if file:
+            log.addHandler(fh)
+
+    log=logging.getLogger('client')
+    if (file):
+        log.info("Writing detailed log to %s" % (CLIENT_LOG_FILE))
+
 
 def count_true_args(*args):
     """Count number of list of arguments that evaluate True"""
@@ -17,23 +59,21 @@ def count_true_args(*args):
             count+=1
     return(count)
 
-def parse_links(link_strs):
+def parse_links(args_link):
     links={}
-    if (link_strs is not None):
-        try:
-            for link_str in link_strs.split(' '):
-                print "ls: %s" % link_str
-                #for link in args.link:
+    if (args_link is not None):
+        for link_str in args_link:
+            try:
                 (href, atts) = parse_link(link_str)
                 links[href]=atts
-        except ValueError as e:
-            raise ClientFatalError("Bad --link option '%s' (%s)"%(link_str,str(e)))
+            except ValueError as e:
+                raise ClientFatalError("Bad --link option '%s' (%s)"%(link_str,str(e)))
     return(links)
 
 def parse_link(link_str):
     """Parse --link option to add to capabilities
 
-    Input string of the form: href,att1:val1,att2:val2
+    Input string of the form: href,att1=val1,att2=val2
     """
     atts={}
     try:
@@ -42,25 +82,32 @@ def parse_link(link_str):
         href = segs.pop(0)
         # Remaining segments are attributes
         for term in segs:
-            (k,v)=term.split(':')
+            (k,v)=term.split('=')
             atts[k]=v
     except ValueError as e:
         raise ClientFatalError("Bad component of --link option '%s' (%s)"%(link_str,str(e)))
     return(href,atts)
 
 def main():
+
+    if (sys.version_info < (2,6)):
+        sys.exit("This program requires python version 2.6 or later")
     
     # Options and arguments
-    p = optparse.OptionParser(description='ResourceSync sync script', add_help_option=False)
+    p = optparse.OptionParser(description='ResourceSync sync script',
+                              usage='usage: %prog [options] uri_path local_path  (-h for help)',
+                              add_help_option=False)
 
     # Modes
     # a. modes using remote sitemap/resources
     rem = p.add_option_group('REMOTE MODES',
-        'These modes use a remote source that is specified in a set of uri=path mappings '\
-        'and potentially also using an explicit --sitemap location. The default mode is '\
+        'These modes use a remote source that is specified in a set of uri=path mappings '
+        'and potentially also using an explicit --sitemap location. The default mode is '
         '--sync')
     rem.add_option('--sync', '-s', action='store_true',
                    help='sync resources from remote source (src) to local filesystem (dst)')
+    rem.add_option('--inc', '-i', action='store_true',
+                   help='incremental sync resources from remote source (src) to local filesystem (dst)')
     rem.add_option('--audit', '-a', action='store_true',
                    help="audit sync state of destination wrt source")
     rem.add_option('--parse', '-p', action='store_true',
@@ -69,24 +116,31 @@ def main():
     loc = p.add_option_group('LOCAL MODES',
         'These modes act on files on the local disk')
     loc.add_option('--write', '-w', action='store_true',
-                   help="write a sitemap based on files on disk using uri=path mappings "\
-                        "in reverse to calculate URIs from the local paths. To STDOUT by "\
+                   help="write a sitemap based on files on disk using uri=path mappings "
+                        "in reverse to calculate URIs from the local paths. To STDOUT by "
                         "default, override with --outfile")
     loc.add_option('--changeset', '-c', action='store_true',
-                   help="write a changeset sitemap by comparion of files on disk with the "\
-                        "reference sitemap. Otherwise follows --write options.")
+                   help="write a changeset sitemap by comparison of a reference sitemap "
+                        "(specify file with --reference) and either files on disk (using "
+                        "the map provided) or a second sitemap (specify file with "
+                        "--newreference). Otherwise follows --write options.")
 
-    # Specification of map between remote URI and local file paths, and remote sitenam
-    nam = p.add_option_group('FILE OPTIONS')
+    # Specification of map between remote URI and local file paths, and remote sitemap
+    nam = p.add_option_group('FILE/URI NAMING OPTIONS')
     nam.add_option('--outfile', type=str, action='store',
                    help='write sitemap to specified file rather than STDOUT')
     nam.add_option('--sitemap', type=str, action='store',
-                   help='explicitly set sitemap name, overriding default sitemap.xml '\
+                   help='explicitly set sitemap name, overriding default sitemap.xml '
                         'appended to first source URI specified in the mappings')
     nam.add_option('--reference', type=str, action='store',
                    help='reference sitemap name for --changeset calculation')
+    nam.add_option('--newreference', type=str, action='store',
+                   help='updated reference sitemap name for --changeset calculation')
     nam.add_option('--dump', metavar="DUMPFILE", type=str, action='store',
                    help='write dump to specified file for --write or --changeset')
+    nam.add_option('--changeset-uri', type=str, action='store',
+                   help='explicitly set the changeset URI that will be use in --inc mode, '
+                        'overrides process of getting this from the sitemap')
 
     # Options that apply to multiple modes
     opt = p.add_option_group('OPTIONS')
@@ -94,14 +148,18 @@ def main():
                    help="use checksum (md5) in addition to last modification time and size")
     opt.add_option('--delete', action='store_true',
                    help="allow files on destination to be deleted")
-    opt.add_option('--link', '-l', type=str, action='store',
-                   help="add discovery links to the output sitemap, "\
-                        "format: href,att1:val1,att2:val2 where multiple links "
-                        "are space separated")
-                   # FIXME - nargs='*' doesn't seem to work as documented, would like
-                   # FIXME - to have multiple --link, one for each link
+    opt.add_option('--exclude', type=str, action='append',
+                   help="exclude resources with URI or filename matching pattern "
+                        "(repeat option for multiple excludes)")
+    opt.add_option('--link', type=str, action='append',
+                   help="add discovery links to the output sitemap, "
+                        "format: href,att1=val1,att2=val2 "
+                        "(repeat option for multiple links)")
     opt.add_option('--multifile', '-m', action='store_true',
-                   help="allow output of multifile sitemap")
+                   help="disable reading and output of sitemapindex for multifile sitemap")
+    opt.add_option('--noauth', action='store_true',
+                   help="disable checking of URL paths to ensure that the sitemaps refer "
+                        "only to resources on the same server/sub-path etc. Use with care.")
     opt.add_option('--warc', action='store_true',
                    help="write dumps in WARC format (instead of ZIP+Sitemap default)")
     opt.add_option('--dryrun', '-n', action='store_true',
@@ -110,10 +168,13 @@ def main():
     opt.add_option('--max-sitemap-entries', type=int, action='store',
                    help="override default size limits")
     # Want these to show at the end
-    opt.add_option('--logger', action='store_true',
-                   help="create detailed log of client actions")
     opt.add_option('--verbose', '-v', action='store_true',
                    help="verbose")
+    opt.add_option('--logger', '-l', action='store_true',
+                   help="create detailed log of client actions")
+    opt.add_option('--eval', '-e', action='store_true',
+                   help="output evaluation of source/client synchronization performance... "
+                        "be warned, this is very verbose")
     opt.add_option('--help', '-h', action='help',
                    help="this help")
 
@@ -121,35 +182,33 @@ def main():
 
     # Implement exclusive arguments and default --sync (current support for exclusive
     # groups in argparse is incomplete)
-    if (not args.sync and not args.audit and not args.parse and
-        not args.write and not args.changeset):
+    if (not args.sync and not args.inc and not args.audit and 
+        not args.parse and not args.write and not args.changeset):
         args.sync=True
     elif (count_true_args(args.sync,args.audit,args.parse,args.write)>1):
-        p.error("Only one of --sync, --audit, --parse, --write, --changeset modes allowed")
+        p.error("Only one of --sync, --inc, --audit, --parse, --write, --changeset modes allowed")
+
+    # Configure logging module and create logger instance
+    init_logging( file=args.logger, verbose=args.verbose, eval_mode=args.eval )
 
     c = Client( checksum=args.checksum,
                 verbose=args.verbose,
                 dryrun=args.dryrun )
 
-    if (args.logger):
-        logfile = 'client_events.log'
-        klass = 'FileEventLog'
-        mod = __import__('resync.event_log', fromlist=[klass])
-        logger_class = getattr(mod, klass)
-        logger = logger_class(c, {'filename':logfile} )
-        if (args.verbose):
-            print "Writing detailed log to %s" % (logfile)
-
     try:
-        # Mappings apply to (almost) everything
         if (map):
+            # Mappings apply to (almost) everything
             c.set_mappings(map)
         if (args.sitemap):
             c.sitemap_name=args.sitemap
         if (args.warc):
             c.dump_format='warc'
+        if (args.exclude):
+            c.exclude_patterns=args.exclude
         if (args.multifile):
-            c.allow_multifile=args.multifile
+            c.allow_multifile=not args.multifile
+        if (args.noauth):
+            c.noauth=args.noauth
         if (args.max_sitemap_entries):
             c.max_sitemap_entries=args.max_sitemap_entries
 
@@ -160,6 +219,9 @@ def main():
         if (args.sync or args.audit):
             c.sync_or_audit(allow_deletion=args.delete,
                             audit_only=args.audit)
+        elif (args.inc):
+            c.incremental(allow_deletion=args.delete,
+                          changeset_uri=args.changeset_uri)
         elif (args.parse):
             c.parse_sitemap()
         elif (args.write):
@@ -170,6 +232,7 @@ def main():
             if (args.reference is None):
                 p.error("Must supply --reference sitemap for --changeset")
             c.changeset_sitemap(ref_sitemap=args.reference,
+                            newref_sitemap=( args.newreference if (args.newreference) else None ),
                             outfile=args.outfile,
                             capabilities=links,
                             dump=args.dump)
@@ -178,7 +241,7 @@ def main():
     # Any problem we expect will come as a ClientFatalError, anything else 
     # is... an exception ;-)
     except ClientFatalError as e:
-        p.error(e.message)
+        p.error(str(e))
 
 if __name__ == '__main__':
     main()

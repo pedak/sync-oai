@@ -101,7 +101,10 @@ class Resource(object):
             raise ValueError("Bad lastmod format (%s)" % lastmod)
         dt = dateutil_parser.parse(lastmod)
         # timetuple ignores timezone information
-        self.timestamp = timegm(dt.timetuple()) + dt.tzinfo.utcoffset(0).total_seconds() + fractional_seconds
+        #offset_seconds = dt.tzinfo.utcoffset(0).total_seconds() #only >=2.7
+        offset = dt.tzinfo.utcoffset(0)
+        offset_seconds = (offset.seconds + offset.days * 24 * 3600)
+        self.timestamp = timegm(dt.timetuple()) + offset_seconds + fractional_seconds
 
     @property
     def basename(self):
@@ -144,3 +147,11 @@ class Resource(object):
         """Return a human readable string for this resource"""
         return "[ %s | %s | %s | %s]" % (self.uri, self.lastmod, 
                                          str(self.size), self.md5)
+                                         
+    def __repr__(self):
+        """Return an unambigous representation"""
+        dict_repr = dict((name, getattr(self, name)) 
+                    for name in dir(self) if not (name.startswith('__') 
+                                                        or name == 'equal')) 
+        return str(dict_repr)
+        
