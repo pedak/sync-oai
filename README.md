@@ -22,12 +22,16 @@ Get the ResourceSync ResourceSync OAI-PMH Adapter from [Github](http://github.co
 Run the ResourceSync OAI-PMH Adapter (with the default configuration in /config/default.yaml):
     
     chmod u+x oai-adapter
-    ./oai-adapter
+    ./oai-adapter 
+
+or run the ResourceSync OAI-PMH Adapter with static sitemap, changeset generation and given endpoint
+
+    ./oai-adapter -c config/static.yaml -u http://www.example.org/oai-endpoint/oai
 
 Run the resync client against the simulated source
 
     chmod u+x resync-client
-    ./resync-client http://localhost:8888 /tmp/sim #TODO
+    ./resync-client -s http://www.example.org/ /tmp/resync/example.org --sitemap http://localhost:8888/sitemap.xml --noauth
 
 Terminate the ResourceSync OAI-PMH Adapter:
 
@@ -39,7 +43,7 @@ Parameterized Use Cases can be defined by creating a [YAML](http://www.yaml.org/
 
 	source:
 	    name: ResourceSync OAI-Adapter
-	    endpoint: http://eprints.cs.univie.ac.at/cgi/oai2
+	    endpoint: http://example.org/cgi/oai2
 	    max_runs: 100
 	    sleep_time: 30
 	    fromdate: 2011-09-13T10:00:00
