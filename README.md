@@ -1,8 +1,6 @@
-# ResourceSync OAI-Adapter
+# ResourceSync OAI-PMH Adapter
 
-The ResourceSync Simulator simulates a changing Web data source.
-
-A client is provided to synchronize a filesystem directory with the simulated resources.
+The ResourceSync OAI-PMH Adapter creates sitemaps and changesets to allow synchronization of resources with resync.
 
 ## Quick start
 
@@ -17,21 +15,21 @@ Install the [Tornado](http://www.tornadoweb.org/) and [SleekXMPP](https://github
     sudo easy_install PyYAML
     sudo easy_install apscheduler
     
-Get the ResourceSync Simulator from [Github](http://www.github.com/behas/resync-simulator):
+Get the ResourceSync ResourceSync OAI-PMH Adapter from [Github](http://github.com/pedak/sync-oai.git):
 
-    git clone git://github.com/resync/simulator.git
+    git clone git://github.com/pedak/sync-oai.git
     
-Run the source simulator (with the default configuration in /config/default.yaml):
+Run the ResourceSync OAI-PMH Adapter (with the default configuration in /config/default.yaml):
     
-    chmod u+x simulate-source
-    ./simulate-source
+    chmod u+x oai-adapter
+    ./oai-adapter
 
 Run the resync client against the simulated source
 
     chmod u+x resync-client
-    ./resync-client http://localhost:8888 /tmp/sim 
+    ./resync-client http://localhost:8888 /tmp/sim #TODO
 
-Terminate the source simulator:
+Terminate the ResourceSync OAI-PMH Adapter:
 
     CTRL-C
 
@@ -39,14 +37,13 @@ Terminate the source simulator:
 
 Parameterized Use Cases can be defined by creating a [YAML](http://www.yaml.org/) configuration file (e.g., simulation1.yaml) and defining a set of parameters:
 
-    source:
-        name: ResourceSync Simulator
-        number_of_resources: 1000
-        change_delay: 2
-        event_types: [create, update, delete]
-        average_payload: 1000
-        max_events: -1
-        stats_interval: 10
+	source:
+	    name: ResourceSync OAI-Adapter
+	    endpoint: http://eprints.cs.univie.ac.at/cgi/oai2
+	    max_runs: 100
+	    sleep_time: 30
+	    fromdate: 2011-09-13T10:00:00
+	    event_types: [create, update, delete]
         
 Additional **inventory**, **publisher**, and **change memory** implementations
 can be attached for simulation purposes. For instance, the following configuration attaches a change memory implemented in the DynamicChangeSet class.

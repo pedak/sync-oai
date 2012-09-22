@@ -31,13 +31,14 @@ from resync.digest import compute_md5_for_string, compute_md5_for_url
 from resync.inventory import Inventory
 from resync.sitemap import Sitemap, Mapper
 
-##oai
-from pyoaipmh.pyoai import Client, Header, Record, NoRecordsException
-from pyoaipmh.common import Common
+##oai imports
+from oaipmh.oai import Client, Header, Record, NoRecordsException
+from oaipmh.common import Common
 import datetime
 from urllib2 import URLError
 from dateutil import parser as dateutil_parser
 import re
+
 #### Source-specific capability implementations ####
 
 class DynamicInventoryBuilder(object):
@@ -273,16 +274,13 @@ class Source(Observable):
         """Creates and returns a resource object from internal resource
         repository. Repositoy values are copied into the object."""
         if not self._repository.has_key(basename): return None
-        uri = basename #oai
-#        uri = self.base_uri + Source.RESOURCE_PATH + "/" + basename #oai
+        uri = basename
         timestamp = self._repository[basename]['timestamp']
-        size = self._repository[basename]['size']
-        md5=-1
-        #DEBUG how to calculate md5
-        #if size>0:
-            #md5 = compute_md5_for_url(basename) #oai (will be called on every sitemap generation)
-        return Resource(uri = uri, timestamp = timestamp, size = size,
-                        md5 = md5)
+		#add md5 and size
+		#size = self._repository[basename]['size']
+		#if size>0:
+            #md5 = compute_md5_for_url(basename) # will be called on every sitemap generation) -> firewall
+        return Resource(uri = uri, timestamp = timestamp)
     
     def resource_payload(self, basename, size = None):
         """Generates dummy payload by repeating res_id x size times"""
@@ -335,9 +333,8 @@ class Source(Observable):
     
     def _create_resource(self, basename = None, identifier = None, timestamp=time.time(), notify_observers = True):
         """Create a new resource, add it to the source, notify observers."""
-        #size=Common.get_size(basename) -> causes block on bigger sites DEBUG
-        size=-1
-        self._repository[basename] = {'timestamp': timestamp, 'size': size}
+        #size=Common.get_size(basename) -> causes firewall blocks on bigger sites DEBUG
+        self._repository[basename] = {'timestamp': timestamp}
         change = ResourceChange(resource = self.resource(basename),
                                 changetype = "CREATED")
         self.oaimapping[identifier]=basename;                        
@@ -348,9 +345,8 @@ class Source(Observable):
         
     def _update_resource(self, basename, timestamp):
         """Update a resource, notify observers."""
-        # size=Common.get_size(basename) -> causes block on bigger sites DEBUG
-        size=-1
-        self._repository[basename] = {'timestamp': timestamp, 'size': size}
+        # size=Common.get_size(basename) -> causes firewall blocks on bigger sites DEBUG
+        self._repository[basename] = {'timestamp': timestamp}
         change = ResourceChange(
                     resource = self.resource(basename),
                     changetype = "UPDATED")
@@ -387,6 +383,7 @@ class Source(Observable):
         except NoRecordsException as e:
             print "No new records found: %s" % e 
         self.check_for_updates()
+
     def _log_stats(self):
         """Log current source statistics"""
         stats = {

@@ -40,7 +40,7 @@ class HTTPInterface(threading.Thread):
         self.source = source
         self.port = source.port
         self.settings = dict(
-            title=u"ResourceSync Change Simulator",
+            title=u"ResourceSync OAI-PMH Adapter",
             template_path=os.path.join(os.path.dirname(__file__), "templates"),
             static_path=Source.STATIC_FILE_PATH,
             autoescape=None,        
