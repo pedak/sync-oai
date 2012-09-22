@@ -3,13 +3,12 @@
 ##### Source Configuration #####
 
 source:
-    name: ResourceSync Simulator
-    number_of_resources: 1000000
-    change_delay: 2
+    name: ResourceSync OAI-Adapter
+    endpoint: http://eprints.cs.univie.ac.at/cgi/oai2
+    max_runs: 100
+    sleep_time: 30
+    fromdate: 2010-08-22T10:00:00
     event_types: [create, update, delete]
-    average_payload: 1000
-    max_events: -1
-    stats_interval: 60
 
 ##### Inventory Builder Implementations #####
 

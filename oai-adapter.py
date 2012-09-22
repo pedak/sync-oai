@@ -53,6 +53,9 @@ def main():
     p.add_option('--config-file', '-c', type=str, action='store',
                     default=DEFAULT_CONFIG_FILE,
                     help="the simulation configuration file")
+    p.add_option('--endpoint-url', '-u', type=str, action='store',
+                    help="the oai-pmh endpoint")
+                    
     p.add_option('--port', '-p', type=int, action='store',
                     default=8888,
                     help="the HTTP interface port")
@@ -71,7 +74,7 @@ def main():
     
     # Parse command line arguments
     (args, map) = p.parse_args()
-    
+    print args
     if(args.logger or args.verbose):
         init_logging(file=args.logger, console=args.verbose,
                      eval_mode=args.eval)
@@ -124,12 +127,11 @@ def main():
     # Attach HTTP interface to source
     http_interface = HTTPInterface(source)
     try:
-        DEFAULT_OAI_ENDPOINT = 'http://eprints.ucm.es/cgi/oai2'
-        DEFAULT_OAI_ENDPOINT = "http://eprints.erpanet.org/perl/oai2"
-        DEFAULT_OAI_ENDPOINT = 'http://eprints.mminf.univie.ac.at/cgi/oai2'
         http_interface.start()
-        #startdate=datetime.datetime(2012,9,12,1,2,3) 
-        source.bootstrap_oai(source_settings['endpoint'])
+        if args.endpoint_url is not None:
+            source.bootstrap_oai(args.endpoint_url)
+        else:
+            source.bootstrap_oai(source_settings['endpoint'])
     except KeyboardInterrupt:
         print "\nStopping simulation and exiting gracefully..."
     finally:

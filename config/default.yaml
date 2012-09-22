@@ -4,8 +4,7 @@
 
 source:
     name: ResourceSync OAI-Adapter
-#    endpoint: http://export.arxiv.org/oai2
-    endpoint: http://eprints.mminf.univie.ac.at/cgi/oai2
+    endpoint: http://eprints.cs.univie.ac.at/cgi/oai2
     max_runs: 100
     sleep_time: 30
     fromdate: 2011-09-13T10:00:00
