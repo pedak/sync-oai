@@ -15,10 +15,11 @@
  */
 
 body {
-  background: white;
+  background-color:#ABA1A0;
   color: black;
   margin: 15px;
   margin-top: 0;
+
 }
 
 body,
@@ -44,10 +45,12 @@ h3,
 h4 {
   font-family: "Helvetica Nue", Helvetica, Arial, sans-serif;
   margin: 0;
+  color:#19363D;
 }
 
 h1 {
   font-size: 20pt;
+  margin: 10px;
 }
 
 h2 {
@@ -71,16 +74,17 @@ pre {
 
 a,
 a code {
-  color: #00c;
+  color: #596063;
 }
 
 #body {
   max-width: 800px;
   margin: auto;
+  background-color:#DBD0D0;
 }
 
 #header {
-  background-color: #3b5998;
+  background-color: #FFBD2F;
   padding: 5px;
   padding-left: 10px;
   padding-right: 10px;
@@ -89,17 +93,19 @@ a code {
 
 #header,
 #header a {
-  color: white;
+  color:#19363D;
 }
 
 #header h1 a {
   text-decoration: none;
+  color:#19363D;
 }
 
 #footer,
 #content {
-  margin-left: 10px;
+  margin-left: 30px;
   margin-right: 10px;
+  padding-bottom: 10px;
 }
 
 #footer {

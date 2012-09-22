@@ -11,6 +11,7 @@ from urllib import urlencode
 from xml.etree.ElementTree import  parse, ParseError, tostring
 from time import sleep
 import re
+import urlparse
 import datetime
 import time
 from dateutil import parser as dateutil_parser
@@ -20,11 +21,13 @@ OAI_NS="http://www.openarchives.org/OAI/2.0/"
 DC_NS="http://purl.org/dc/elements/1.1/"
 
 class Client(object):
-    """OAI Client manages communication with an OAI-Endpoint"""
+    """OAI-PMH Client manages communication with an OAI-PMH endpoint"""
     
     def __init__(self,endpoint):
         self.endpoint=endpoint
         self.granularity=None
+        m = urlparse.urlparse(endpoint)
+        self.baseurl=m.netloc
         
     def get_date(self, datestring):
         """return datestamp of datetime.datetime object"""
@@ -94,13 +97,16 @@ class Client(object):
                             raise NoRecordsException, (error.attrib['code'],error.text)
                         listRecords=etree.find('{'+OAI_NS+"}ListRecords")
                         for xmlrecords in listRecords.findall('{'+OAI_NS+"}record"):
-                                header_node=xmlrecords.find('{'+OAI_NS+"}header")
-                                header=self.buildHeader(header_node)
-                                metadata_node=xmlrecords.find('{'+OAI_NS+"}metadata")
-                                resource=None
-                                if metadata_node is not None:
-                                    resource=self.getIdentifier(metadata_node[0])
-                                yield Record(header,resource,rdate)
+							header_node=xmlrecords.find('{'+OAI_NS+"}header")
+							header=self.buildHeader(header_node)
+							metadata_node=xmlrecords.find('{'+OAI_NS+"}metadata")
+							resources=None
+							if metadata_node is not None:
+								resources=self.getIdentifiers(metadata_node[0])
+								for resource in resources: # for each found resource in data record
+									yield Record(header,resource,rdate)
+							else: #e.g. in case of deletion
+								yield Record(header,resource,rdate)
                         if(listRecords.find('{'+OAI_NS+"}resumptionToken") is not None):
                             rtoken=listRecords.find('{'+OAI_NS+"}resumptionToken").text
                             params = re.sub("&resumptionToken=.*","",params)    #delete previous resumptionToken
@@ -149,19 +155,19 @@ class Client(object):
             isdeleted=True
         return Header(identifier,datestamp,isdeleted)
     
-    def getIdentifier(self,metadata_node):
+    def getIdentifiers(self,metadata_node):
         """extract resource information of metadata_node"""
-        #DEBUG which url to use
         identifiers=[]
         for children in metadata_node.findall('{'+DC_NS+'}identifier'):
             identifiers.append(children.text)
         for children in metadata_node.findall('{'+DC_NS+'}relation'):
             identifiers.append(children.text)
+        resources={}
         for identifier in identifiers:
-            url=re.search("(https?|ftp|file)://[-A-Za-z0-9+&@#/%?=~_|!:,.;]*[-A-Za-z0-9+&@#/%=~_|]",identifier)
-            if(url):
-                return url.group()
-        return None
+            if re.match("http.*"+self.baseurl+"[-A-Za-z0-9+&@#/%?=~_|!:,.;]*[-A-Za-z0-9+&@#/%=~_|]",identifier) is not None:
+                resource=re.sub("/$","",identifier)
+                return {resource: resource} #should be extended #debug
+        
     
 
      
@@ -218,12 +224,4 @@ class Header(object):
 class NoRecordsException(Exception):
     pass
 
-def main():
-    client=Client("http://eprints.mminf.univie.ac.at/cgi/oai2")  
-
-    for i,y in enumerate(client.listRecords("2013-08-02T01:01:01Z")):
-        print i,y
-          
-        
-if __name__ == '__main__':
-    main()
+         

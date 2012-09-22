@@ -258,11 +258,14 @@ class Client(object):
         if (self.dryrun):
             self.logger.info("dryrun: would GET %s --> %s" % (resource.uri,file))
         else:
-            urllib.urlretrieve(resource.uri,file)
-            if (resource.timestamp is not None):
-                unixtime = int(resource.timestamp) #no fractional
-                os.utime(file,(unixtime,unixtime))
-            self.log_event(ResourceChange(resource=resource, changetype=changetype))
+            try:
+                urllib.urlretrieve(resource.uri,file)
+                if (resource.timestamp is not None):
+                    unixtime = int(resource.timestamp) #no fractional
+                    os.utime(file,(unixtime,unixtime))
+                self.log_event(ResourceChange(resource=resource, changetype=changetype))
+            except IOError as e:
+                self.logger.warning("Problem to download resource %s - %s" % (resource.uri, e))
 
 
     def parse_sitemap(self):

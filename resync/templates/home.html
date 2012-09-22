@@ -2,11 +2,10 @@
 
 {% block body %}
   
-  <h2>Simulation overview</h2>
+  <h2>ResourceSync OAI-PMH Adapter overview</h2>
 
-  <p>Simulated data source: <b>{{ source.config['endpoint'] }}</b></p>
-  <p>Event types: <b>{{ " ".join(source.config['event_types']) }}</b></p>
-  <p>Current resources: <b>{{ resource_count }} </b>
+  <p>Data source: <b>{{ source.config['endpoint'] }}</b></p>
+  <p>Fetched resources: <b>{{ resource_count }} </b>
     (<a href="/resources">view sample)</a>
   </p>
   

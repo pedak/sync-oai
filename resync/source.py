@@ -110,14 +110,6 @@ class StaticInventoryBuilder(DynamicInventoryBuilder):
     
     def write_static_inventory(self):
         """Writes the inventory to the filesystem"""
-        # Log Sitemap create start event
-        self.logger.info("Start writing Sitemap inventory.")
-        sm_write_start = ResourceChange(
-                resource = ResourceChange(self.uri, 
-                                timestamp=time.time()),
-                                changetype = "SITEMAP UPDATE START")
-        self.source.notify_observers(sm_write_start)
-        
         # Generate sitemap in temp directory
         then = time.time()
         self.ensure_temp_dir(Source.TEMP_FILE_PATH)
@@ -276,10 +268,6 @@ class Source(Observable):
         if not self._repository.has_key(basename): return None
         uri = basename
         timestamp = self._repository[basename]['timestamp']
-		#add md5 and size
-		#size = self._repository[basename]['size']
-		#if size>0:
-            #md5 = compute_md5_for_url(basename) # will be called on every sitemap generation) -> firewall
         return Resource(uri = uri, timestamp = timestamp)
     
     def resource_payload(self, basename, size = None):
@@ -333,7 +321,6 @@ class Source(Observable):
     
     def _create_resource(self, basename = None, identifier = None, timestamp=time.time(), notify_observers = True):
         """Create a new resource, add it to the source, notify observers."""
-        #size=Common.get_size(basename) -> causes firewall blocks on bigger sites DEBUG
         self._repository[basename] = {'timestamp': timestamp}
         change = ResourceChange(resource = self.resource(basename),
                                 changetype = "CREATED")
@@ -345,7 +332,6 @@ class Source(Observable):
         
     def _update_resource(self, basename, timestamp):
         """Update a resource, notify observers."""
-        # size=Common.get_size(basename) -> causes firewall blocks on bigger sites DEBUG
         self._repository[basename] = {'timestamp': timestamp}
         change = ResourceChange(
                     resource = self.resource(basename),
