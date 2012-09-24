@@ -4,11 +4,10 @@
 
 source:
     name: ResourceSync OAI-Adapter
-#    endpoint: http://eprints.mminf.univie.ac.at/cgi/oai2
-    endpoint: http://www.pubmedcentral.nih.gov/oai/oai.cgi
+    endpoint: http://eprints.cs.univie.ac.at/cgi/oai2
     max_runs: 100
     sleep_time: 30
-    delay_time: 0.03
+    delay_time: 3
     fromdate: 2012-09-20T10:00:00
     event_types: [create, update, delete]
 
@@ -31,7 +30,7 @@ inventory_builder:
 # A dynamic memory-based change memory
 # changememory:
 #     class: DynamicChangeSet
-#     uri_path: changeset
+#     uri_path: changeset.xml
 #     max_changes: 1000
 
 # A static file-based change memory

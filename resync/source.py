@@ -199,6 +199,7 @@ class Source(Observable):
         self.oaimapping = {} #oai
         self.client=None #oai
         self.lastcheckdate=dateutil_parser.parse(config['fromdate'].strftime("%Y-%m-%d %H:%SZ")) #oai
+        self.lastrecord = None
     
     ##### Source capabilities #####
     
@@ -341,15 +342,18 @@ class Source(Observable):
 
     def _delete_resource(self, identifier, timestamp, notify_observers = True):
         """Delete a given resource, notify observers."""
-        basename=self.oaimapping[identifier]
-        res = self.resource(basename)
-        del self._repository[basename]
-        del self.oaimapping[identifier]
-        res.timestamp = timestamp
-        if notify_observers:
-            change = ResourceChange(resource = res, changetype = "DELETED")
-            self.notify_observers(change)
-            self.logger.debug("Event: %s" % repr(change))
+        if identifier in self.oaimapping:
+            basename=self.oaimapping[identifier]
+            res = self.resource(basename)
+            del self._repository[basename]
+            del self.oaimapping[identifier]
+            res.timestamp = timestamp
+            if notify_observers:
+                change = ResourceChange(resource = res, changetype = "DELETED")
+                self.notify_observers(change)
+                self.logger.debug("Event: %s" % repr(change))
+        else:
+            self.logger.debug("Resource %s could not be deleted, not in list" % identifier)
     
     def bootstrap_oai(self,endpoint): #todo update granularity
         """bootstraps OAI-PMH Source"""
@@ -359,9 +363,8 @@ class Source(Observable):
         try:
             j=0
             for i,record in enumerate(self.client.listRecords(startdate,delay=self.config['delay_time'])):
-                self.process_record(record,init=True)
+                j+=self.process_record(record,init=True)
                 self.lastcheckdate=record.responseDate()
-                j=i
             self.logger.info("Finished adding  %d initial resources with checkdate: %s" % (j,self.lastcheckdate))
         except URLError, e:
             print "URLError: %s" % (e)
@@ -379,6 +382,7 @@ class Source(Observable):
     
     def process_record(self,record,init=False):
         """reads record, extract and returns record with information about (resource uri, timestamp, identifier)"""
+        self.lastrecord=record
         timestamp=Common.tofloat(record.header().datestamp())
         identifier=record.header().identifier()
         if(not record.header().isDeleted()):    #if resource new or updated
@@ -386,13 +390,17 @@ class Source(Observable):
             if identifier in self.oaimapping: # if update
                 self.logger.debug("updating resource: identifier: %s basename: %s, timestamp %s" % (identifier, basename, timestamp))                    
                 self._update_resource(basename,timestamp)
+                return True
             else:                               # or create
                 self.logger.debug("adding ressource: identifier: %s, basename %s, timestamp %s" % (identifier,
                                 basename, timestamp))                    
                 self._create_resource(basename,identifier,timestamp)
+                return True
         elif(not init):
             self.logger.debug("deleting identifier: %s, timestamp %s" % (identifier, timestamp))                    
             self._delete_resource(identifier,timestamp)
+            return True
+        return False
 
         
     def check_for_updates(self):
@@ -413,13 +421,16 @@ class Source(Observable):
         try:
             self.logger.debug("Requesting new records with date: %s" % checkdate)
             for i,record in enumerate(self.client.listRecords(checkdate)): # limit to specific date
-                if self.lastcheckdate<=record.header().datestamp():
-                    self.process_record(record)
-                elif record.header().identifier() not in self.oaimapping:
-                    self.process_record(record)
-                    self.logger.debug("Record %s has datestamp %s, last checkdate %s is higher, since record not in list (date of records not accurate )" % (record.header().identifier(), record.header().datestamp().strftime("%Y-%m-%dT%H:%M:%SZ"), self.lastcheckdate))
+                if record.id() in self.oaimapping:
+                    if record.header().isDeleted():
+                        self.process_record(record) # record in list, but now deleted
+                    else:
+                        if self.lastcheckdate<=record.header().datestamp():
+                            self.process_record(record) # record in list, and has lastmodified-date>lastcheckdate
+                        else:     
+                            self.logger.debug("Record %s read, but is already in list (could have been updated, but not possible to detect)" % (record.header().identifier()))
                 else:
-                    self.logger.debug("Record %s has datestamp:%s but last checkdate: %s is higher" % (record.header().identifier(), record.header().datestamp().strftime("%Y-%m-%dT%H:%M:%SZ"), self.lastcheckdate))
+                    self.process_record(record)
                 checkdate=record.responseDate()
             return checkdate
         except NoRecordsException as e:

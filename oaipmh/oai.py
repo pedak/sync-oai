@@ -174,9 +174,6 @@ class Client(object):
                 resource=re.sub("/$","",identifier)
                 return {resource: resource} #should be extended #debug
         
-    
-
-     
 class Record(object):
     """record about resource"""
     
@@ -197,6 +194,13 @@ class Record(object):
         """response date of OAI-PMH endpoint of the response containing this record"""
         return self._response_date
     
+    def id(self):
+        """shortcut for identifier of header of record"""
+        return self.header().identifier()
+    
+    def __eq__(self,other):
+        return self.header() == other.header()
+    
     def __str__(self):
         """Prints out Header, response date and resource uri """
         return "Header: {%s}, Resource: {%s}, Response-Date %s" % (self._header,self._resource, self._response_date)
@@ -204,6 +208,7 @@ class Record(object):
         
 class Header(object):
     """header informations"""
+    
     def __init__(self,identifier,datestamp,isdeleted=False):
         self._identifier = identifier
         self._datestamp = datestamp
@@ -216,14 +221,20 @@ class Header(object):
     def datestamp(self):
         """datestamp in format datetime.datetime"""
         return self._datestamp
-
+    
+    
     def isDeleted(self):
         """status of record, set True if it is deleted"""
         return self._isdeleted
     
+    def __eq__(self,other):
+        return self.identifier()==other.identifier()
+    
     def __str__(self):
         """Prints out the Header attributes"""
         return "identifier: %s, datestamp %s, isDeleted: %s" % (self._identifier, self._datestamp, self._isdeleted)
+        
+        
 
 
 

@@ -30,7 +30,7 @@ inventory_builder:
 # A dynamic memory-based change memory
 # changememory:
 #     class: DynamicChangeSet
-#     uri_path: changeset
+#     uri_path: changeset.xml
 #     max_changes: 1000
 
 # A static file-based change memory
