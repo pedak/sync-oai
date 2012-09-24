@@ -351,19 +351,17 @@ class Source(Observable):
             self.notify_observers(change)
             self.logger.debug("Event: %s" % repr(change))
     
-    def bootstrap_oai(self,endpoint,startdate=None): #todo update granularity
+    def bootstrap_oai(self,endpoint): #todo update granularity
         """bootstraps OAI-PMH Source"""
-        if startdate is None:
-            startdate=self.config['fromdate']
+        startdate=self.config['fromdate']
         self.logger.debug("Connection to OAI-Endpoint %s" % endpoint)
         self.client=Client(endpoint)
         try:
             j=0
-            for i,record in enumerate(self.client.listRecords(startdate)):
+            for i,record in enumerate(self.client.listRecords(startdate,delay=self.config['delay_time'])):
                 self.process_record(record,init=True)
                 self.lastcheckdate=record.responseDate()
                 j=i
-                time.sleep(self.config['delay_time'])
             self.logger.info("Finished adding  %d initial resources with checkdate: %s" % (j,self.lastcheckdate))
         except URLError, e:
             print "URLError: %s" % (e)
@@ -385,7 +383,7 @@ class Source(Observable):
         identifier=record.header().identifier()
         if(not record.header().isDeleted()):    #if resource new or updated
             basename=record.resource()
-            if (identifier in self.oaimapping): # if update
+            if identifier in self.oaimapping: # if update
                 self.logger.debug("updating resource: identifier: %s basename: %s, timestamp %s" % (identifier, basename, timestamp))                    
                 self._update_resource(basename,timestamp)
             else:                               # or create
@@ -417,8 +415,11 @@ class Source(Observable):
             for i,record in enumerate(self.client.listRecords(checkdate)): # limit to specific date
                 if self.lastcheckdate<=record.header().datestamp():
                     self.process_record(record)
+                elif identifier not in self.oaimapping:
+                    self.process_record(record)
+                    self.logger.debug("Record %s has datestamp %s, last checkdate %s is higher, since record not in list (date of records not accurate )" % (record.header().identifier(), record.header().datestamp().strftime("%Y-%m-%dT%H:%M:%SZ"), self.lastcheckdate))
                 else:
-                    self.logger.debug("Record %s has datestamp:%s but checkdate: %s is higher" % (record.header().identifier(), record.header().datestamp().strftime("%Y-%m-%dT%H:%M:%SZ"), self.lastcheckdate))
+                    self.logger.debug("Record %s has datestamp:%s but last checkdate: %s is higher" % (record.header().identifier(), record.header().datestamp().strftime("%Y-%m-%dT%H:%M:%SZ"), self.lastcheckdate))
                 checkdate=record.responseDate()
             return checkdate
         except NoRecordsException as e:

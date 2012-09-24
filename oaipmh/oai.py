@@ -73,7 +73,7 @@ class Client(object):
         except ParseError, e:
             print "ParseError %s" % e
     
-    def listRecords(self,afrom=None):
+    def listRecords(self,afrom=None,delay=0):
         """generator who list Records with informations about resources
         afrom can be datetime.datetime object or datestamp in format YYYY-MM-DDTHH:MM:SSZ
         """
@@ -114,8 +114,8 @@ class Client(object):
                             params += '&resumptionToken='+rtoken #add new resumptionToken
                         else:
                             break
-            
-                     
+                        time.sleep(delay)
+
                 except HTTPError, e:
                     if e.code == 503:
                         try:
