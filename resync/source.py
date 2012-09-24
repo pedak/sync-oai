@@ -346,18 +346,23 @@ class Source(Observable):
 
     def _delete_resource(self, identifier, timestamp, notify_observers = True, oai = True):
         """Delete a given resource, notify observers."""
-        basename=self.oaimapping[identifier]
+        basename=None
+        if oai:
+            basename=self.oaimapping[identifier]
+            del self.oaimapping[identifier]
+            self._delete_resource(identifier=identifier,timestamp=timestamp,notify_observers=notify_observers,oai=False)
+        else:
+            basename=self.client.endpoint+"?verb=GetRecord&metadataPrefix=oai_dc&identifier="+identifier
+
         res = self.resource(basename)
         del self._repository[basename]
-        del self.oaimapping[identifier]
         res.timestamp = timestamp
+        
         if notify_observers:
             change = ResourceChange(resource = res, changetype = "DELETED")
             self.notify_observers(change)
             self.logger.debug("Event: %s" % repr(change))
         
-        if oai:
-            del self._repository[self.client.endpoint+"?verb=GetRecord&metadataPrefix=oai_dc&identifier="+identifier]
     
     def bootstrap_oai(self,endpoint): #todo update granularity
         """bootstraps OAI-PMH Source"""
