@@ -415,7 +415,7 @@ class Source(Observable):
             for i,record in enumerate(self.client.listRecords(checkdate)): # limit to specific date
                 if self.lastcheckdate<=record.header().datestamp():
                     self.process_record(record)
-                elif identifier not in self.oaimapping:
+                elif record.header().identifier() not in self.oaimapping:
                     self.process_record(record)
                     self.logger.debug("Record %s has datestamp %s, last checkdate %s is higher, since record not in list (date of records not accurate )" % (record.header().identifier(), record.header().datestamp().strftime("%Y-%m-%dT%H:%M:%SZ"), self.lastcheckdate))
                 else:
