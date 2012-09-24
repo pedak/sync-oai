@@ -199,7 +199,6 @@ class Source(Observable):
         self.oaimapping = {} #oai
         self.client=None #oai
         self.lastcheckdate=dateutil_parser.parse(config['fromdate'].strftime("%Y-%m-%d %H:%SZ")) #oai
-        self.lastrecord = None
     
     ##### Source capabilities #####
     
@@ -320,18 +319,21 @@ class Source(Observable):
     
     # Private Methods
     
-    def _create_resource(self, basename = None, identifier = None, timestamp=time.time(), notify_observers = True):
+    def _create_resource(self, basename = None, identifier = None, timestamp=time.time(), notify_observers = True, oai = True):
         """Create a new resource, add it to the source, notify observers."""
         self._repository[basename] = {'timestamp': timestamp}
         change = ResourceChange(resource = self.resource(basename),
                                 changetype = "CREATED")
-        self.oaimapping[identifier]=basename;                        
+    
         if notify_observers:
             self.notify_observers(change)
             self.logger.debug("Event: %s" % repr(change))
-        return change
+            
+        if oai:
+            self._create_resource(basename=self.client.endpoint+"?verb=GetRecord&metadataPrefix=oai_dc&identifier="+identifier,timestamp=timestamp,notify_observers=notify_observers,oai=False)
+            self.oaimapping[identifier]=basename;
         
-    def _update_resource(self, basename, timestamp):
+    def _update_resource(self, basename, timestamp, oai = True):
         """Update a resource, notify observers."""
         self._repository[basename] = {'timestamp': timestamp}
         change = ResourceChange(
@@ -339,8 +341,10 @@ class Source(Observable):
                     changetype = "UPDATED")
         self.notify_observers(change)
         self.logger.debug("Event: %s" % repr(change))
+        if oai:
+            self._update_resource(basename=self.client.endpoint+"?verb=GetRecord&metadataPrefix=oai_dc&identifier="+identifier,timestamp=timestamp,oai=False)
 
-    def _delete_resource(self, identifier, timestamp, notify_observers = True):
+    def _delete_resource(self, identifier, timestamp, notify_observers = True, oai = True):
         """Delete a given resource, notify observers."""
         basename=self.oaimapping[identifier]
         res = self.resource(basename)
@@ -351,6 +355,9 @@ class Source(Observable):
             change = ResourceChange(resource = res, changetype = "DELETED")
             self.notify_observers(change)
             self.logger.debug("Event: %s" % repr(change))
+        
+        if oai:
+            del self._repository[self.client.endpoint+"?verb=GetRecord&metadataPrefix=oai_dc&identifier="+identifier]
     
     def bootstrap_oai(self,endpoint): #todo update granularity
         """bootstraps OAI-PMH Source"""
