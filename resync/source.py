@@ -363,6 +363,7 @@ class Source(Observable):
                 self.process_record(record,init=True)
                 self.lastcheckdate=record.responseDate()
                 j=i
+                time.sleep(self.config['delay_time'])
             self.logger.info("Finished adding  %d initial resources with checkdate: %s" % (j,self.lastcheckdate))
         except URLError, e:
             print "URLError: %s" % (e)

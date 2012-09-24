@@ -7,6 +7,7 @@ source:
     endpoint: http://eprints.cs.univie.ac.at/cgi/oai2
     max_runs: 100
     sleep_time: 30
+    delay_time: 0.03
     fromdate: 2011-09-13T10:00:00
     event_types: [create, update, delete]
 

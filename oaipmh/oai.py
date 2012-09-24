@@ -109,6 +109,7 @@ class Client(object):
 								yield Record(header,resource,rdate)
                         if(listRecords.find('{'+OAI_NS+"}resumptionToken") is not None):
                             rtoken=listRecords.find('{'+OAI_NS+"}resumptionToken").text
+                            params = re.sub("&from=.*","",params)    #delete previous resumptionToken
                             params = re.sub("&resumptionToken=.*","",params)    #delete previous resumptionToken
                             params += '&resumptionToken='+rtoken #add new resumptionToken
                         else:
@@ -150,7 +151,12 @@ class Client(object):
             if children.tag=='{'+OAI_NS+'}identifier':
                 identifier=children.text
             elif children.tag=='{'+OAI_NS+'}datestamp':
-                datestamp=dateutil_parser.parse(children.text)
+                if re.match(r"\d\d\d\d\-\d\d\-\d\d$",children.text):
+                    children.text+="T00:00:00Z"
+                if re.match(r"\d\d\d\d\-\d\d\-\d\dT\d\d:\d\d(:\d\d)?(Z|[+-]\d\d:\d\d)$",children.text):
+                    datestamp=dateutil_parser.parse(children.text)
+                else:
+                    raise ValueError("Bad datestamp format (%s)" % children.text)
         if header_node.attrib=={'status': 'deleted'}:
             isdeleted=True
         return Header(identifier,datestamp,isdeleted)

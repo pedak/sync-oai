@@ -74,7 +74,6 @@ def main():
     
     # Parse command line arguments
     (args, map) = p.parse_args()
-    print args
     if(args.logger or args.verbose):
         init_logging(file=args.logger, console=args.verbose,
                      eval_mode=args.eval)

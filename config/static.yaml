@@ -4,10 +4,12 @@
 
 source:
     name: ResourceSync OAI-Adapter
-    endpoint: http://eprints.cs.univie.ac.at/cgi/oai2
+#    endpoint: http://eprints.mminf.univie.ac.at/cgi/oai2
+    endpoint: http://www.pubmedcentral.nih.gov/oai/oai.cgi
     max_runs: 100
     sleep_time: 30
-    fromdate: 2010-08-22T10:00:00
+    delay_time: 0.03
+    fromdate: 2012-09-20T10:00:00
     event_types: [create, update, delete]
 
 ##### Inventory Builder Implementations #####
