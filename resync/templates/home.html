@@ -4,7 +4,10 @@
   
   <h2>ResourceSync OAI-PMH Adapter overview</h2>
 
-  <p>Data source: <b>{{ source.config['endpoint'] }}</b></p>
+  <p>OAI-PMH endpoint: <b><a target="_blank" href="{{ source.config['endpoint'] }}">{{ source.config['endpoint'] }}</a></b></p>
+  <p>Requesting changes since: <b>{{ source.config['fromdate'] }}</b></p>
+  <p>Request delay (in seconds): <b>{{ source.config['delay_time'] }}</b></p>
+  <p>Request intervall (in seconds): <b>{{ source.config['sleep_time'] }}</b></p>
   <p>Fetched resources: <b>{{ resource_count }} </b>
     (<a href="/resources">view sample)</a>
   </p>

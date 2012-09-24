@@ -342,18 +342,15 @@ class Source(Observable):
 
     def _delete_resource(self, identifier, timestamp, notify_observers = True):
         """Delete a given resource, notify observers."""
-        if identifier in self.oaimapping:
-            basename=self.oaimapping[identifier]
-            res = self.resource(basename)
-            del self._repository[basename]
-            del self.oaimapping[identifier]
-            res.timestamp = timestamp
-            if notify_observers:
-                change = ResourceChange(resource = res, changetype = "DELETED")
-                self.notify_observers(change)
-                self.logger.debug("Event: %s" % repr(change))
-        else:
-            self.logger.debug("Resource %s could not be deleted, not in list" % identifier)
+        basename=self.oaimapping[identifier]
+        res = self.resource(basename)
+        del self._repository[basename]
+        del self.oaimapping[identifier]
+        res.timestamp = timestamp
+        if notify_observers:
+            change = ResourceChange(resource = res, changetype = "DELETED")
+            self.notify_observers(change)
+            self.logger.debug("Event: %s" % repr(change))
     
     def bootstrap_oai(self,endpoint): #todo update granularity
         """bootstraps OAI-PMH Source"""
@@ -381,7 +378,8 @@ class Source(Observable):
         self.logger.info("Source stats: %s" % stats)
     
     def process_record(self,record,init=False):
-        """reads record, extract and returns record with information about (resource uri, timestamp, identifier)"""
+        """reads record, extract and returns record with information about (resource uri, timestamp, identifier)
+        return true, if record was processed successfully"""
         self.lastrecord=record
         timestamp=Common.tofloat(record.header().datestamp())
         identifier=record.header().identifier()
@@ -401,7 +399,6 @@ class Source(Observable):
             self._delete_resource(identifier,timestamp)
             return True
         return False
-
         
     def check_for_updates(self):
         """Based on sleep_time and max_runs check on a given interval if the source has creations, updates, deletions"""
@@ -429,16 +426,13 @@ class Source(Observable):
                             self.process_record(record) # record in list, and has lastmodified-date>lastcheckdate
                         else:     
                             self.logger.debug("Record %s read, but is already in list (could have been updated, but not possible to detect)" % (record.header().identifier()))
-                else:
-                    self.process_record(record)
+                elif record.header().isDeleted() is not True:
+                    self.process_record(record) # record not in list, and not deleted -> must be a new record
                 checkdate=record.responseDate()
             return checkdate
         except NoRecordsException as e:
             print "No new records found: %s" % e            
              
-        
-
-    
     def __str__(self):
         """Prints out the source's resources"""
         return pprint.pformat(self._repository)

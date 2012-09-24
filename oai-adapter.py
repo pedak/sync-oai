@@ -118,7 +118,7 @@ def main():
         logger = logger_class(source, config['logger'])
     
     # Bootstrap the source
-    print "Bootstrapping the source with initial dataset ..."
+    print "Bootstrapping the source ..."
     source.bootstrap()
     print "Source simulator is now running at %s" % source.base_uri
     
