@@ -414,14 +414,17 @@ class Source(Observable):
         
     def check_for_updates(self):
         """Based on sleep_time and max_runs check on a given interval if the source has creations, updates, deletions"""
-        for i in range (self.config['max_runs']):
+        no_run=1
+        while no_run != self.config['max_runs']:
             time.sleep(self.config['sleep_time'])
             self.logger.debug("Start with %d. run to check for updates at OAI with checkdate: %s" % 
-                            (i,self.lastcheckdate))
+                            (no_run,self.lastcheckdate))
             response_date=self.check(self.lastcheckdate)
             if response_date is not None:
                 self.lastcheckdate=response_date
+            no_run+=1
             time.sleep(self.config['sleep_time'])
+            
         
     def check(self,checkdate):
         """check endpoint for new records
