@@ -66,11 +66,10 @@ class DynamicInventoryBuilder(object):
     def generate(self):
         """Generates an inventory (snapshot from the source)"""
         then = time.time()
-        self.logger.debug("Start inventory generation")
         capabilities = {}
         if self.source.has_changememory:
             next_changeset = self.source.changememory.next_changeset_uri()
-            capabilities[next_changeset] = {"type": "changeset"}
+            capabilities[next_changeset] = {"rel": "next http://www.openarchives.org/rs/changeset"}
         inventory = Inventory(resources=self.source.resources,
                               capabilities=capabilities)
         now = time.time()
@@ -189,6 +188,7 @@ class Source(Observable):
         super(Source, self).__init__()
         self.logger = logging.getLogger('source')
         self.config = config
+        self.logger.info("Source config: %s " % self.config)
         self.hostname = hostname
         self.port = port
         self.max_res_id = 1
@@ -270,6 +270,15 @@ class Source(Observable):
         timestamp = self._repository[basename]['timestamp']
         return Resource(uri = uri, timestamp = timestamp)
     
+    def resource_payload(self, basename, size = None):
+        """Generates dummy payload by repeating res_id x size times"""
+        if size == None: size = self._repository[basename]['size']
+        no_repetitions = size / len(basename)
+        content = "".join([basename for x in range(no_repetitions)])
+        no_fill_chars = size % len(basename)
+        fillchars = "".join(["x" for x in range(no_fill_chars)])
+        return content + fillchars
+    
     def random_resources(self, number = 1):
         "Return a random set of resources, at most all resources"
         if number > len(self._repository):
@@ -277,7 +286,37 @@ class Source(Observable):
         rand_basenames = random.sample(self._repository.keys(), number)
         return [self.resource(basename) for basename in rand_basenames]
     
-        
+    def simulate_changes(self):
+        """Simulate changing resources in the source"""
+        self.logger.info("Starting simulation...")
+        sleep_time = self.config['change_delay']
+        while self.no_events != self.config['max_events']:
+            time.sleep(sleep_time)
+            event_type = random.choice(self.config['event_types'])
+            if event_type == "create":
+                self._create_resource()
+            elif event_type == "update" or event_type == "delete":
+                if len(self._repository.keys()) > 0:
+                    basename = random.sample(self._repository.keys(), 1)[0]
+                else:
+                    basename = None
+                if basename is None: 
+                    self.no_events = self.no_events + 1                    
+                    continue
+                if event_type == "update":
+                    self._update_resource(basename)
+                elif event_type == "delete":
+                    self._delete_resource(basename)
+
+            else:
+                self.logger.error("Event type %s is not supported" 
+                                                                % event_type)
+            self.no_events = self.no_events + 1
+            if self.no_events%self.config['stats_interval'] == 0:
+                self._log_stats()
+
+        self.logger.info("Finished change simulation")
+    
     # Private Methods
     
     def _create_resource(self, basename = None, identifier = None, timestamp=time.time(), notify_observers = True, oai = True):
@@ -285,7 +324,6 @@ class Source(Observable):
         self._repository[basename] = {'timestamp': timestamp}
         change = ResourceChange(resource = self.resource(basename),
                                 changetype = "CREATED")
-    
         if notify_observers:
             self.notify_observers(change)
             self.logger.debug("Event: %s" % repr(change))
@@ -323,7 +361,6 @@ class Source(Observable):
             change = ResourceChange(resource = res, changetype = "DELETED")
             self.notify_observers(change)
             self.logger.debug("Event: %s" % repr(change))
-        
     
     def bootstrap_oai(self,endpoint): #todo update granularity
         """bootstraps OAI-PMH Source"""

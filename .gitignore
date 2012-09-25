@@ -8,4 +8,3 @@ dist/
 # Ignore log files from simulator and client
 resync-client.log
 resync-source.log
-.DS_Store

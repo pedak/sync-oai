@@ -48,21 +48,3 @@ def compute_md5_for_file(file, block_size=2**14):
             break
         md5.update(data)
     return base64.b64encode(md5.digest())
-    return md5.hexdigest()
-
-def compute_md5_for_url(url):
-    """Compute MD5 digest for a remote resource
-    """
-    try:
-        f = urlopen(url)
-        md5 = hashlib.md5()
-        while True:
-            data = f.read(2048)
-            if not data:
-                break
-            md5.update(data)
-        return md5.hexdigest()
-    except URLError, e:
-        print "URLError at downloading %s for creation of md5 digest %s" % (url,e)
-        return -1
-#oai
