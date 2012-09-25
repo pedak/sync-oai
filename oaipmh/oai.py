@@ -178,6 +178,7 @@ class Client(object):
                 except HTTPError, e:
                     #print "non public %s %s" % (identifier, e.getcode())
                     pass
+        return {}
                 
                 
         
