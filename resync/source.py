@@ -334,7 +334,7 @@ class Source(Observable):
             for i,record in enumerate(self.client.listRecords(startdate,delay=self.config['delay_time'])):
                 no_records+=self.process_record(record,init=True)
                 self.lastcheckdate=record.responseDate()
-            self.logger.info("Finished adding  %d initial resources with checkdate: %s" % (no_records,self.lastcheckdate))
+            self.logger.info("Finished adding  %d initial resources with checkdate: %s" % ((no_records*2),self.lastcheckdate))
         except URLError, e:
             self.logger.error("URLError: %s" % (e))
         except NoRecordsException as e:
