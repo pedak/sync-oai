@@ -100,14 +100,12 @@ class Client(object):
 							header_node=xmlrecords.find('{'+OAI_NS+"}header")
 							header=self.buildHeader(header_node)
 							metadata_node=xmlrecords.find('{'+OAI_NS+"}metadata")
-							resources=None
-							resource=None
 							if metadata_node is not None:
 								resources=self.getDataIdentifiers(metadata_node[0])
 								for resource in resources: # for each found resource in data record
 									yield Record(header,resource,rdate)
 							else: #e.g. in case of deletion
-								yield Record(header,resource,rdate)
+								yield Record(header,None,rdate)
                         if(listRecords.find('{'+OAI_NS+"}resumptionToken") is not None):
                             rtoken=listRecords.find('{'+OAI_NS+"}resumptionToken").text
                             params = re.sub("&from=.*","",params)    #delete useless parameters
@@ -172,8 +170,16 @@ class Client(object):
         resources={}
         for identifier in identifiers:
             if re.match("http.*"+self.baseurl+"[-A-Za-z0-9+&@#/%?=~_|!:,.;]*[-A-Za-z0-9+&@#/%=~_|]",identifier) is not None:
-                resource=re.sub("/$","",identifier) # delete final /
-                return {resource: resource} #should be extended #debug
+                try:
+                    urlh=urlopen(identifier)
+                    if urlh.getcode()==200:
+                        resource=re.sub("/$","",identifier) # delete final /
+                        return {resource: resource} #should be extended #debug
+                except HTTPError, e:
+                    #print "non public %s %s" % (identifier, e.getcode())
+                    pass
+                
+                
         
 class Record(object):
     """record about resource"""
