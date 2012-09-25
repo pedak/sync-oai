@@ -174,7 +174,7 @@ class StaticInventoryBuilder(DynamicInventoryBuilder):
         return sum([os.stat(directory + "/" + f).st_size 
                         for f in self.ls_sitemap_files(directory)])
     
-#### Source Simulator ####
+#### OAI-Adapter Source ####
 
 class Source(Observable):
     """A source contains a list of resources and changes over time"""
@@ -225,7 +225,6 @@ class Source(Observable):
     def bootstrap(self):
         """Bootstrap the source with a set of resources"""
         self.logger.info("Bootstrapping source")
-        
         if self.has_changememory: self.changememory.bootstrap()
         if self.has_inventory_builder: self.inventory_builder.bootstrap()
         self._log_stats()
@@ -270,15 +269,6 @@ class Source(Observable):
         timestamp = self._repository[basename]['timestamp']
         return Resource(uri = uri, timestamp = timestamp)
     
-    def resource_payload(self, basename, size = None):
-        """Generates dummy payload by repeating res_id x size times"""
-        if size == None: size = self._repository[basename]['size']
-        no_repetitions = size / len(basename)
-        content = "".join([basename for x in range(no_repetitions)])
-        no_fill_chars = size % len(basename)
-        fillchars = "".join(["x" for x in range(no_fill_chars)])
-        return content + fillchars
-    
     def random_resources(self, number = 1):
         "Return a random set of resources, at most all resources"
         if number > len(self._repository):
@@ -286,36 +276,6 @@ class Source(Observable):
         rand_basenames = random.sample(self._repository.keys(), number)
         return [self.resource(basename) for basename in rand_basenames]
     
-    def simulate_changes(self):
-        """Simulate changing resources in the source"""
-        self.logger.info("Starting simulation...")
-        sleep_time = self.config['change_delay']
-        while self.no_events != self.config['max_events']:
-            time.sleep(sleep_time)
-            event_type = random.choice(self.config['event_types'])
-            if event_type == "create":
-                self._create_resource()
-            elif event_type == "update" or event_type == "delete":
-                if len(self._repository.keys()) > 0:
-                    basename = random.sample(self._repository.keys(), 1)[0]
-                else:
-                    basename = None
-                if basename is None: 
-                    self.no_events = self.no_events + 1                    
-                    continue
-                if event_type == "update":
-                    self._update_resource(basename)
-                elif event_type == "delete":
-                    self._delete_resource(basename)
-
-            else:
-                self.logger.error("Event type %s is not supported" 
-                                                                % event_type)
-            self.no_events = self.no_events + 1
-            if self.no_events%self.config['stats_interval'] == 0:
-                self._log_stats()
-
-        self.logger.info("Finished change simulation")
     
     # Private Methods
     
@@ -327,7 +287,7 @@ class Source(Observable):
         if notify_observers:
             self.notify_observers(change)
             self.logger.debug("Event: %s" % repr(change))
-            
+        # add metadata resource url            
         if oai:
             self._create_resource(basename=self.client.endpoint+"?verb=GetRecord&metadataPrefix=oai_dc&identifier="+identifier,timestamp=timestamp,notify_observers=notify_observers,oai=False)
             self.oaimapping[identifier]=basename;
@@ -340,6 +300,7 @@ class Source(Observable):
                     changetype = "UPDATED")
         self.notify_observers(change)
         self.logger.debug("Event: %s" % repr(change))
+        # update metadata resource url
         if oai:
             self._update_resource(basename=self.client.endpoint+"?verb=GetRecord&metadataPrefix=oai_dc&identifier="+identifier,timestamp=timestamp,oai=False)
 
@@ -349,6 +310,7 @@ class Source(Observable):
         if oai:
             basename=self.oaimapping[identifier]
             del self.oaimapping[identifier]
+            # delete metadata resource url
             self._delete_resource(identifier=identifier,timestamp=timestamp,notify_observers=notify_observers,oai=False)
         else:
             basename=self.client.endpoint+"?verb=GetRecord&metadataPrefix=oai_dc&identifier="+identifier
@@ -365,18 +327,18 @@ class Source(Observable):
     def bootstrap_oai(self,endpoint): #todo update granularity
         """bootstraps OAI-PMH Source"""
         startdate=self.config['fromdate']
-        self.logger.debug("Connection to OAI-Endpoint %s" % endpoint)
+        self.logger.debug("Connecting to OAI-Endpoint %s" % endpoint)
         self.client=Client(endpoint)
         try:
-            j=0
+            no_records=0
             for i,record in enumerate(self.client.listRecords(startdate,delay=self.config['delay_time'])):
-                j+=self.process_record(record,init=True)
+                no_records+=self.process_record(record,init=True)
                 self.lastcheckdate=record.responseDate()
-            self.logger.info("Finished adding  %d initial resources with checkdate: %s" % (j,self.lastcheckdate))
+            self.logger.info("Finished adding  %d initial resources with checkdate: %s" % (no_records,self.lastcheckdate))
         except URLError, e:
-            print "URLError: %s" % (e)
+            self.logger.error("URLError: %s" % (e))
         except NoRecordsException as e:
-            print "No new records found: %s" % e 
+            self.logger.info("No new records found: %s" % e) 
         self.check_for_updates()
 
     def _log_stats(self):
@@ -390,7 +352,6 @@ class Source(Observable):
     def process_record(self,record,init=False):
         """reads record, extract and returns record with information about (resource uri, timestamp, identifier)
         return true, if record was processed successfully"""
-        self.lastrecord=record
         timestamp=Common.tofloat(record.header().datestamp())
         identifier=record.header().identifier()
         if(not record.header().isDeleted()):    #if resource new or updated
@@ -417,18 +378,15 @@ class Source(Observable):
             time.sleep(self.config['sleep_time'])
             self.logger.debug("Start with %d. run to check for updates at OAI with checkdate: %s" % 
                             (no_run,self.lastcheckdate))
-            response_date=self.check(self.lastcheckdate)
-            if response_date is not None:
-                self.lastcheckdate=response_date
+            self.check()
             no_run+=1
-            time.sleep(self.config['sleep_time'])
-            
         
-    def check(self,checkdate):
+    def check(self):
         """check endpoint for new records
         filters records whose responseDate is lower as the last checkdate
         the filter is required since most endpoints work with finest granularity of days"""
         try:
+            checkdate=self.lastcheckdate
             self.logger.debug("Requesting new records with date: %s" % checkdate)
             for i,record in enumerate(self.client.listRecords(checkdate)): # limit to specific date
                 if record.id() in self.oaimapping:
@@ -442,9 +400,9 @@ class Source(Observable):
                 elif record.header().isDeleted() is not True:
                     self.process_record(record) # record not in list, and not deleted -> must be a new record
                 checkdate=record.responseDate()
-            return checkdate
+            self.lastcheckdate=checkdate
         except NoRecordsException as e:
-            print "No new records found: %s" % e            
+            self.logger.info("No new records found: %s" % e)            
              
     def __str__(self):
         """Prints out the source's resources"""

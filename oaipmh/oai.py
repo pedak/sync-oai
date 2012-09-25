@@ -103,14 +103,14 @@ class Client(object):
 							resources=None
 							resource=None
 							if metadata_node is not None:
-								resources=self.getIdentifiers(metadata_node[0])
+								resources=self.getDataIdentifiers(metadata_node[0])
 								for resource in resources: # for each found resource in data record
 									yield Record(header,resource,rdate)
 							else: #e.g. in case of deletion
 								yield Record(header,resource,rdate)
                         if(listRecords.find('{'+OAI_NS+"}resumptionToken") is not None):
                             rtoken=listRecords.find('{'+OAI_NS+"}resumptionToken").text
-                            params = re.sub("&from=.*","",params)    #delete previous resumptionToken
+                            params = re.sub("&from=.*","",params)    #delete useless parameters
                             params = re.sub("&resumptionToken=.*","",params)    #delete previous resumptionToken
                             params += '&resumptionToken='+rtoken #add new resumptionToken
                         else:
@@ -147,7 +147,7 @@ class Client(object):
         """extract header information of header_node into Header object"""
         identifier=None
         datestamp=None
-        isdeleted=None
+        isdeleted=False
         for children in header_node:
             if children.tag=='{'+OAI_NS+'}identifier':
                 identifier=children.text
@@ -162,7 +162,7 @@ class Client(object):
             isdeleted=True
         return Header(identifier,datestamp,isdeleted)
     
-    def getIdentifiers(self,metadata_node):
+    def getDataIdentifiers(self,metadata_node):
         """extract resource information of metadata_node"""
         identifiers=[]
         for children in metadata_node.findall('{'+DC_NS+'}identifier'):
@@ -172,7 +172,7 @@ class Client(object):
         resources={}
         for identifier in identifiers:
             if re.match("http.*"+self.baseurl+"[-A-Za-z0-9+&@#/%?=~_|!:,.;]*[-A-Za-z0-9+&@#/%=~_|]",identifier) is not None:
-                resource=re.sub("/$","",identifier)
+                resource=re.sub("/$","",identifier) # delete final /
                 return {resource: resource} #should be extended #debug
         
 class Record(object):

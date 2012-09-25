@@ -31,8 +31,7 @@ def init_logging(file=False, console=False, eval_mode=False):
         fh = logging.FileHandler(filename=SOURCE_LOG_FILE, mode='a')
         fh.setFormatter(formatter)
     
-    loggers = ['source', 'changememory', 'http', 'sitemap', 
-               'inventory_builder']
+    loggers = ['source']
     for logger in loggers:
         log = logging.getLogger(logger)
         if eval_mode:
@@ -46,10 +45,10 @@ def init_logging(file=False, console=False, eval_mode=False):
 
 def main():
     
-    p = optparse.OptionParser(description='ResourceSync source simulator',
+    p = optparse.OptionParser(description='ResourceSync OAI-PMH adapter',
         usage='usage: %prog [options] uri_path local_path  (-h for help)')
         
-    # Define simulator options
+    # Define adapter options
     p.add_option('--config-file', '-c', type=str, action='store',
                     default=DEFAULT_CONFIG_FILE,
                     help="the simulation configuration file")
@@ -61,7 +60,7 @@ def main():
                     help="the HTTP interface port")
     p.add_option('--hostname', '-n', type=str, action='store',
                     default="localhost",
-                    help="the hostname where the simulator is running")
+                    help="the hostname where the adapter is running")
     p.add_option('--logger', '-l', action='store_true',
                     default=False,
                     help="write detailed logs of source to file")
@@ -81,7 +80,7 @@ def main():
     # Load the YAML configuration file
     config = yaml.load(file(args.config_file, 'r'))
     
-    print "Setting up ResourceSync source simulator..."
+    print "Setting up ResourceSync OAI-Adapter..."
     
     # Set up the source
     source_settings = config['source']
@@ -120,7 +119,7 @@ def main():
     # Bootstrap the source
     print "Bootstrapping the source ..."
     source.bootstrap()
-    print "Source simulator is now running at %s" % source.base_uri
+    print "OAI-PMH adapter is now running at %s" % source.base_uri
     
     # Start the Web interface, run the simulation
     # Attach HTTP interface to source
