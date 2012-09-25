@@ -402,7 +402,9 @@ class Source(Observable):
                 checkdate=record.responseDate()
             self.lastcheckdate=checkdate
         except NoRecordsException as e:
-            self.logger.info("No new records found: %s" % e)            
+            self.logger.info("No new records found: %s" % e)
+        except URLError, e:
+            self.logger.error("URL-Error %s" % e)           
              
     def __str__(self):
         """Prints out the source's resources"""
