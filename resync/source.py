@@ -302,7 +302,7 @@ class Source(Observable):
         self.logger.debug("Event: %s" % repr(change))
         # update metadata resource url
         if oai:
-            self._update_resource(basename=self.client.endpoint+"?verb=GetRecord&metadataPrefix=oai_dc&identifier="+identifier,timestamp=timestamp,oai=False)
+            self._update_resource(self.client.endpoint+"?verb=GetRecord&metadataPrefix=oai_dc&identifier="+identifier,identifier,timestamp,oai=False)
 
     def _delete_resource(self, identifier, timestamp, notify_observers = True, oai = True):
         """Delete a given resource, notify observers."""
@@ -311,7 +311,7 @@ class Source(Observable):
             basename=self.oaimapping[identifier]
             del self.oaimapping[identifier]
             # delete metadata resource url
-            self._delete_resource(identifier=identifier,timestamp=timestamp,notify_observers=notify_observers,oai=False)
+            self._delete_resource(identifier,timestamp,notify_observers=notify_observers,oai=False)
         else:
             basename=self.client.endpoint+"?verb=GetRecord&metadataPrefix=oai_dc&identifier="+identifier
 
