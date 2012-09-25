@@ -292,7 +292,7 @@ class Source(Observable):
             self._create_resource(basename=self.client.endpoint+"?verb=GetRecord&metadataPrefix=oai_dc&identifier="+identifier,timestamp=timestamp,notify_observers=notify_observers,oai=False)
             self.oaimapping[identifier]=basename;
         
-    def _update_resource(self, basename, timestamp, oai = True):
+    def _update_resource(self, basename, identifier, timestamp, oai = True):
         """Update a resource, notify observers."""
         self._repository[basename] = {'timestamp': timestamp}
         change = ResourceChange(
@@ -358,7 +358,7 @@ class Source(Observable):
             basename=record.resource()
             if identifier in self.oaimapping: # if update
                 self.logger.debug("updating resource: identifier: %s basename: %s, timestamp %s" % (identifier, basename, timestamp))                    
-                self._update_resource(basename,timestamp)
+                self._update_resource(basename,identifier,timestamp)
                 return True
             else:                               # or create
                 self.logger.debug("adding ressource: identifier: %s, basename %s, timestamp %s" % (identifier,
