@@ -27,7 +27,7 @@ from apscheduler.scheduler import Scheduler
 from resync.observer import Observable
 from resync.resource_change import ResourceChange
 from resync.resource import Resource
-from resync.digest import compute_md5_for_string, compute_md5_for_url
+from resync.digest import compute_md5_for_string
 from resync.inventory import Inventory
 from resync.sitemap import Sitemap, Mapper
 

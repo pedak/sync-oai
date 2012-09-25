@@ -101,6 +101,7 @@ class Client(object):
 							header=self.buildHeader(header_node)
 							metadata_node=xmlrecords.find('{'+OAI_NS+"}metadata")
 							resources=None
+							resource=None
 							if metadata_node is not None:
 								resources=self.getIdentifiers(metadata_node[0])
 								for resource in resources: # for each found resource in data record
