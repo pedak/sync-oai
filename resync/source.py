@@ -404,7 +404,10 @@ class Source(Observable):
         except NoRecordsException as e:
             self.logger.info("No new records found: %s" % e)
         except URLError, e:
-            self.logger.error("URL-Error %s" % e)           
+            self.logger.error("URL-Error: %s" % e)
+        except socket.error, e:
+            self.logger.error("Socket-Error: %s" % e)
+            
              
     def __str__(self):
         """Prints out the source's resources"""
