@@ -38,6 +38,7 @@ import datetime
 from urllib2 import URLError
 from dateutil import parser as dateutil_parser
 import re
+import socket
 
 #### Source-specific capability implementations ####
 
