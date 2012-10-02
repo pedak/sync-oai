@@ -171,10 +171,10 @@ class Client(object):
             identifiers.append(children.text)
         resources={}
         for identifier in identifiers:
-            starturl=""
+            starturl="(https?|ftp|file)://"
             if self.limit:
-                starturl="http.*"+self.baseurl
-            if re.match(starturl+"[-A-Za-z0-9+&@#/%?=~_|!:,.;]*[-A-Za-z0-9+&@#/%=~_|]",identifier) is not None:
+                starturl+=(self.baseurl+"[-A-Za-z0-9+&@#/%?=~_|!:,.;]*[-A-Za-z0-9+&@#/%=~_|]")
+            if re.match(starturl,identifier) is not None:
                 try:
                     if self.checkurl:
                         urlh=urlopen(identifier)
