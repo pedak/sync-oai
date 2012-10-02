@@ -329,7 +329,7 @@ class Source(Observable):
         """bootstraps OAI-PMH Source"""
         startdate=self.config['fromdate']
         self.logger.debug("Connecting to OAI-Endpoint %s" % endpoint)
-        self.client=Client(endpoint)
+        self.client=Client(endpoint,self.config['limit'],self.config['checkurl'])
         try:
             no_records=0
             for i,record in enumerate(self.client.listRecords(startdate,delay=self.config['delay_time'])):

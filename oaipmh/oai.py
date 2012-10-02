@@ -23,11 +23,13 @@ DC_NS="http://purl.org/dc/elements/1.1/"
 class Client(object):
     """OAI-PMH Client manages communication with an OAI-PMH endpoint"""
     
-    def __init__(self,endpoint):
+    def __init__(self,endpoint,limit,checkurl):
         self.endpoint=endpoint
         self.granularity=None
         m = urlparse.urlparse(endpoint)
         self.baseurl=m.netloc
+        self.limit=limit
+        self.checkurl=checkurl
         
     def get_date(self, datestring):
         """return datestamp of datetime.datetime object"""
@@ -106,15 +108,15 @@ class Client(object):
 									yield Record(header,resource,rdate)
 							else: #e.g. in case of deletion
 								yield Record(header,None,rdate)
-                        if(listRecords.find('{'+OAI_NS+"}resumptionToken") is not None):
+                        if listRecords.find('{'+OAI_NS+"}resumptionToken") is not None:
                             rtoken=listRecords.find('{'+OAI_NS+"}resumptionToken").text
-                            params = re.sub("&from=.*","",params)    #delete useless parameters
-                            params = re.sub("&resumptionToken=.*","",params)    #delete previous resumptionToken
-                            params += '&resumptionToken='+rtoken #add new resumptionToken
+                            if rtoken is not None:
+                                params = re.sub("&from=.*","",params)    #delete useless parameters
+                                params = re.sub("&resumptionToken=.*","",params)    #delete previous resumptionToken
+                                params += '&resumptionToken='+rtoken #add new resumptionToken
                         else:
                             break
                         time.sleep(delay)
-
                 except HTTPError, e:
                     if e.code == 503:
                         try:
@@ -169,10 +171,14 @@ class Client(object):
             identifiers.append(children.text)
         resources={}
         for identifier in identifiers:
-            if re.match("http.*"+self.baseurl+"[-A-Za-z0-9+&@#/%?=~_|!:,.;]*[-A-Za-z0-9+&@#/%=~_|]",identifier) is not None:
+            starturl=""
+            if self.limit:
+                starturl="http.*"+self.baseurl
+            if re.match(starturl+"[-A-Za-z0-9+&@#/%?=~_|!:,.;]*[-A-Za-z0-9+&@#/%=~_|]",identifier) is not None:
                 try:
-                    urlh=urlopen(identifier)
-                    if urlh.getcode()==200:
+                    if self.checkurl:
+                        urlh=urlopen(identifier)
+                    if not self.checkurl or urlh.getcode()==200:
                         resource=re.sub("/$","",identifier) # delete final /
                         return {resource: resource} #should be extended #debug
                 except HTTPError, e:

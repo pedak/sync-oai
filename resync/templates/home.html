@@ -11,6 +11,7 @@
   <p>Fetched resources: <b>{{ resource_count }} </b>
     (<a href="/resources">view sample)</a>
   </p>
+  <p><a target="_blank" href="{{ source.client.endpoint }}?verb=ListRecords&metadataPrefix=oai_dc&from={{str(source.config['fromdate'])[:10]}}">Source</a>
   
   {% if source.has_inventory_builder %}
   <br />

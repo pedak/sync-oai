@@ -1,15 +1,17 @@
-# The default ResourceSync simulator configuration
+# The default ResourceSync OAI-Adapter configuration
 
 ##### Source Configuration #####
 
 source:
     name: ResourceSync OAI-Adapter
-    endpoint: http://eprints.cs.univie.ac.at/cgi/oai2
+    endpoint: http://eprints.mminf.univie.ac.at/cgi/oai2
     max_runs: -1
-    sleep_time: 30
-    delay_time: 3
-    fromdate: 2012-09-20T10:00:00
+    sleep_time: 360
+    delay_time: 60
+    fromdate: 2012-09-02T00:00:00
     event_types: [create, update, delete]
+    limit: False
+    checkurl: False
 
 ##### Inventory Builder Implementations #####
 
@@ -22,7 +24,7 @@ source:
 inventory_builder:
     class: StaticInventoryBuilder
     max_sitemap_entries: 500
-    interval: 30
+    interval: 360
     uri_path: sitemap.xml
 
 ##### ChangeMemory Implementations #####

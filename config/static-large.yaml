@@ -1,16 +1,18 @@
-# The default ResourceSync simulator configuration
+# The default ResourceSync OAI-Adapter configuration
 
 ##### Source Configuration #####
 
 source:
     name: ResourceSync OAI-Adapter
     endpoint: http://eprints.cs.univie.ac.at/cgi/oai2
-    max_runs: 100
+    max_runs: -1
     sleep_time: 30
     delay_time: 3
     fromdate: 2010-08-22T10:00:00
     event_types: [create, update, delete]
-
+    limit: False
+    checkurl: False
+    
 ##### Inventory Builder Implementations #####
 
 # A dynamic builder that creates inventories at request time
