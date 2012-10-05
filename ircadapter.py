@@ -126,7 +126,7 @@ def main():
     http_interface = HTTPInterface(source)
     try:
         http_interface.start()
-        source.bootstrap_irc(source_settings['endpoint'],source_settings['channel'])
+        source.bootstrap_irc(source_settings['host'],source_settings['channel'])
     except KeyboardInterrupt:
         print "\nStopping irc adapter, server and exiting gracefully..."
     finally:

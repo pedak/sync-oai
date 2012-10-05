@@ -4,7 +4,7 @@
 
 source:
     name: ResourceSync OAI-Adapter
-    endpoint: irc.wikimedia.org
+    host: irc.wikimedia.org
     channel: de.wikipedia
     sleep_time: 360
     delay_time: 60

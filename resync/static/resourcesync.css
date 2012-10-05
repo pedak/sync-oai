@@ -15,7 +15,7 @@
  */
 
 body {
-  background-color:#ABA1A0;
+  background-color:#E0E4CC;
   color: black;
   margin: 15px;
   margin-top: 0;
@@ -74,17 +74,17 @@ pre {
 
 a,
 a code {
-  color: #596063;
+  color: #F38630;
 }
 
 #body {
   max-width: 800px;
   margin: auto;
-  background-color:#DBD0D0;
+  background-color:#A7DBD8;
 }
 
 #header {
-  background-color: #FFBD2F;
+  background-color: #FA6900;
   padding: 5px;
   padding-left: 10px;
   padding-right: 10px;
@@ -93,12 +93,12 @@ a code {
 
 #header,
 #header a {
-  color:#19363D;
+  color:#A7DBD8;
 }
 
 #header h1 a {
   text-decoration: none;
-  color:#19363D;
+  color:#A7DBD8;
 }
 
 #footer,

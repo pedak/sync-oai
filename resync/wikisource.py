@@ -199,6 +199,7 @@ class Source(Observable):
         self.inventory_builder = None # The inventory builder implementation
         self.changememory = None # The change memory implementation
         self.no_events = 0
+        self.no_resources = 0
         self.oaimapping = {} #oai
         self.client=None #oai
         self.lastcheckdate=dateutil_parser.parse(config['fromdate'].strftime("%Y-%m-%d %H:%SZ")) #oai
@@ -290,6 +291,7 @@ class Source(Observable):
         timestamp = time.time()
         change = ResourceChange(resource = self.resource(basename),
                                 changetype = "CREATED")
+        self.no_resources+=1
         if notify_observers:
             self.notify_observers(change)
             self.logger.debug("Event: %s" % repr(change))
@@ -297,7 +299,10 @@ class Source(Observable):
     def _update_resource(self, basename):
         """Update a resource, notify observers."""
         timestamp = time.time()
-        self._repository[basename] = {'timestamp': timestamp}
+        if basename not in self._repository:
+            self._repository[basename] = {'timestamp': timestamp}
+            self.no_resources+=1
+            
         change = ResourceChange(
                     resource = self.resource(basename),
                     changetype = "UPDATED")
@@ -328,7 +333,11 @@ class Source(Observable):
         
     def process(self):
         while 1: #Loop forever because 1 == always True (keeps us connected to IRC)
-            line = self.irc.readline().rstrip() #New readline for buffer
+            #time.sleep(1)
+            if self.no_resources>100000:
+                time.sleep(1000)
+            else:
+                line = self.irc.readline().rstrip() #New readline for buffer
             if re.search(".*\001.*\001.*", line): #This block searches chan msgs for strings
                 user = line.split('!~')[0][1:]
                 self.client.sendall('PRIVMSG {0} :stop plox\r\n'.format(user))
@@ -340,9 +349,11 @@ class Source(Observable):
                 if 'rc-pmtpa' in line:
                     #regex = re.compile("\x03(?:\d{1,2}(?:,\d{1,2})?)?", re.UNICODE)
                     #string=regex.sub("",line)
+                    string=line
                     self.logger.debug(string)
                     match=re.search("#de.wikipedia :\x0314\[\[\x0307(.+?)\x0314\]\]\x034 (.*?)\x0310.*\x0302(.*?)\x03.+\x0303(.+?)\x03.+\x03 (.*) \x0310(.*)\x03?.*", string)
-                    self.record(match)
+                    if match is not None:
+                        self.record(match)
 
                 if '!op' in line:
                     user = line[line.find('!op')+len('!op'):].rstrip().lstrip()

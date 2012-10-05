@@ -2,16 +2,14 @@
 
 {% block body %}
   
-  <h2>ResourceSync OAI-PMH Adapter overview</h2>
+  <h2>ResourceSync Wikipedia Adapter overview</h2>
 
-  <p>OAI-PMH endpoint: <b><a target="_blank" href=""></a></b></p>
-  <p>Requesting changes since: <b></b></p>
-  <p>Request delay (in seconds): <b>{{ source.config['delay_time'] }}</b></p>
-  <p>Request intervall (in seconds): <b>{{ source.config['sleep_time'] }}</b></p>
+  <p>Wikipedia endpoint: <b><a target="_blank" href="irc://{{ source.config['host'] }}">{{ source.config['host'] }}</a></b></p>
+  <p>IRC-Channel: <b><a target="_blank" href="#{{ source.config['host'] }}">#{{ source.config['channel'] }}</a></b></p>
   <p>Fetched resources: <b>{{ resource_count }} </b>
     (<a href="/resources">view sample)</a>
   </p>
-  <p><a target="_blank" href="?verb=ListRecords&metadataPrefix=oai_dc&from=">Source</a>
+
   
   {% if source.has_inventory_builder %}
   <br />
