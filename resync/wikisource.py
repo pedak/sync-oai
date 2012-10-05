@@ -384,7 +384,7 @@ class Source(Observable):
             self._delete_resource(url)
             if match2 is not None:
                 url="http://de.wikipedia.org/wiki/%s" % unicode(match2.group(1),"utf-8")
-                print "Deleted entry part2 at URL: %s" % url
+                self.logger.debug("Deleted entry part2 at URL: %s" % url)
                 self._delete_resource(url)
         elif re.search("approve",match.group(2)):
             self.logger.debug("ApprovedUpdate at URL: %s" % match.group(1))
