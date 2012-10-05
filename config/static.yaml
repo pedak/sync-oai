@@ -4,11 +4,11 @@
 
 source:
     name: ResourceSync OAI-Adapter
-    endpoint: http://eprints.mminf.univie.ac.at/cgi/oai2
-    max_runs: -1
+    endpoint: irc.wikimedia.org
+    channel: de.wikipedia
     sleep_time: 360
     delay_time: 60
-    fromdate: 2012-09-02T00:00:00
+    fromdate: 2012-10-02T00:00:00
     event_types: [create, update, delete]
     limit: False
     checkurl: False
