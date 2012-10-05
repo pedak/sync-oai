@@ -309,7 +309,7 @@ class Source(Observable):
     def _delete_resource(self, basename, notify_observers = True):
         """Delete a given resource, notify observers."""
         res = self.resource(basename)
-        if self._repository[basename]:
+        if basename in self._repository:
             del self._repository[basename]
         res.timestamp = time.time()
         
@@ -336,12 +336,14 @@ class Source(Observable):
                 if '!quit' in line: #If a user PRIVMSG's '!quit' quit
                     self.client.sendall("QUIT :Quit: Leaving..\r\n")
                     break
+
                 if 'rc-pmtpa' in line:
-                    regex = re.compile("\x03(?:\d{1,2}(?:,\d{1,2})?)?", re.UNICODE)
-                    string=regex.sub("",line)
-                    match=re.search("#%s :\[\[(.*)]\] (!?[a-zA-Z\-]*).*" % self.channel,string)
-                    if match:
-        			    self.record(match)
+                    #regex = re.compile("\x03(?:\d{1,2}(?:,\d{1,2})?)?", re.UNICODE)
+                    #string=regex.sub("",line)
+                    self.logger.debug(string)
+                    match=re.search("#de.wikipedia :\x0314\[\[\x0307(.+?)\x0314\]\]\x034 (.*?)\x0310.*\x0302(.*?)\x03.+\x0303(.+?)\x03.+\x03 (.*) \x0310(.*)\x03?.*", string)
+                    self.record(match)
+
                 if '!op' in line:
                     user = line[line.find('!op')+len('!op'):].rstrip().lstrip()
                     if user in safe:
@@ -350,18 +352,38 @@ class Source(Observable):
                 if 'PING' in line: #If the server pings, ping back (keeps connection)
                     msg = line.split(':')[1].lstrip().rstrip()
                     self.client.sendall("PONG {0}\r\n".format(msg))
+                
+                if 'Nickname is already in use' in line:
+                    self.s.sendall("NICK %s\r\n" % nick+random.randint(1, 10)) #Sets the Bot's nick name
+                    self.s.sendall("USER %s %s bla :%s\r\n" % (ident, self.host, realname)) #Logs Bot into IRC and ID's
+                    self.s.send("JOIN :#%s\r\n" % self.channel) #Join #nullbytez
     
     def record(self,match):
-        print "group2: %s" % match.group(2)
         url="http://de.wikipedia.org/wiki/%s" % unicode(match.group(1),"utf-8")
-        if re.search("N",match.group(2)):
-            print "New entry at URL: %s" % url
+        match2=re.search("\x0302(.*)\x0310",match.group(6))
+        if re.search("N|upload",match.group(2)):
+            self.logger.debug("New entry at URL: %s" % url)
             self._create_resource(url)
+            if match2 is not None:
+                url="http://de.wikipedia.org/wiki/%s" % unicode(match2.group(1),"utf-8")
+                self.logger.debug("New entry part 2 at URL: %s" % url)
+                self._create_resource(url)
         elif re.search("delete",match.group(2)):    
-            print "Deleted URL: %s" % url
+            self.logger.debug("Deleted URL: %s" % url)
             self._delete_resource(url)
+            if match2 is not None:
+                url="http://de.wikipedia.org/wiki/%s" % unicode(match2.group(1),"utf-8")
+                print "Deleted entry part2 at URL: %s" % url
+                self._delete_resource(url)
+        elif re.search("approve",match.group(2)):
+            self.logger.debug("ApprovedUpdate at URL: %s" % match.group(1))
+            self._update_resource(url)
+            if match2 is not None:
+                url="http://de.wikipedia.org/wiki/%s" % unicode(match2.group(1),"utf-8")
+                self.logger.debug("Approved entry part 2 at URL: %s" % url)
+                self._update_resource(url)
         else:
-            print "Update at URL: %s" % match.group(1)
+            self.logger.debug("Update at URL: %s" % match.group(1))
             self._update_resource(url)
             
     def _log_stats(self):
