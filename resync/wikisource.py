@@ -199,11 +199,9 @@ class Source(Observable):
         self.inventory_builder = None # The inventory builder implementation
         self.changememory = None # The change memory implementation
         self.no_events = 0
-        self.no_resources = 0
-        self.oaimapping = {} #oai
         self.client=None #oai
-        self.lastcheckdate=dateutil_parser.parse(config['fromdate'].strftime("%Y-%m-%d %H:%SZ")) #oai
         self.host=None
+        self.nick="simplewikibot"
     
     ##### Source capabilities #####
     
@@ -291,7 +289,6 @@ class Source(Observable):
         timestamp = time.time()
         change = ResourceChange(resource = self.resource(basename),
                                 changetype = "CREATED")
-        self.no_resources+=1
         if notify_observers:
             self.notify_observers(change)
             self.logger.debug("Event: %s" % repr(change))
@@ -299,17 +296,13 @@ class Source(Observable):
     def _update_resource(self, basename):
         """Update a resource, notify observers."""
         timestamp = time.time()
-        if basename not in self._repository:
-            self._repository[basename] = {'timestamp': timestamp}
-            self.no_resources+=1
+        self._repository[basename] = {'timestamp': timestamp}
             
         change = ResourceChange(
                     resource = self.resource(basename),
                     changetype = "UPDATED")
         self.notify_observers(change)
         self.logger.debug("Event: %s" % repr(change))
-        # update metadata resource url
-       
 
     def _delete_resource(self, basename, notify_observers = True):
         """Delete a given resource, notify observers."""
@@ -323,84 +316,72 @@ class Source(Observable):
             self.notify_observers(change)
             self.logger.debug("Event: %s" % repr(change))
     
-    def bootstrap_irc(self,endpoint,channel): #todo update granularity
+    def bootstrap_irc(self,endpoint,channel,dumpfile): #todo update granularity
         """bootstraps OAI-PMH Source"""
-        self.loadDump()
+        if dumpfile:
+            self.loadDump(dumpfile)
         self.channel=channel
         self.logger.debug("Connecting to Wikimedia-IRC-Endpoint %s" % endpoint)
-        self.client=IRCClient(endpoint,channel)
+        self.client=IRCClient(endpoint,channel,self.config['nick'],self.config['ident'],self.config['realname'])
         self.irc=self.client.connect()
         self.process()
         
-    def loadDump(self):
-        fh=open("wikipedia-latest-titles")
+    def loadDump(self, filename):
+        fh=open(filename)
         i=0
         for i,line in enumerate(fh):
             resource=line[:len(line)-1]
-            self._create_resource(resource,notify_observers=False)
+            self._create_resource(unicode(resource,"utf-8"),notify_observers=False)
             print "%s %screated" % (i,resource)
 
             
     def process(self):
-        while 1: #Loop forever because 1 == always True (keeps us connected to IRC)
-            #time.sleep(1)
-            if self.no_resources>100000:
-                time.sleep(1000)
-            else:
-                line = self.irc.readline().rstrip() #New readline for buffer
+        while 1:
+            line = self.irc.readline().rstrip() 
             if re.search(".*\001.*\001.*", line): #This block searches chan msgs for strings
                 user = line.split('!~')[0][1:]
                 self.client.sendall('PRIVMSG {0} :stop plox\r\n'.format(user))
             else:
-                if '!quit' in line: #If a user PRIVMSG's '!quit' quit
-                    self.client.sendall("QUIT :Quit: Leaving..\r\n")
-                    break
-
                 if 'rc-pmtpa' in line:
                     #regex = re.compile("\x03(?:\d{1,2}(?:,\d{1,2})?)?", re.UNICODE)
                     #string=regex.sub("",line)
                     string=line
                     self.logger.debug(string)
-                    match=re.search("#de.wikipedia :\x0314\[\[\x0307(.+?)\x0314\]\]\x034 (.*?)\x0310.*\x0302(.*?)\x03.+\x0303(.+?)\x03.+\x03 (.*) \x0310(.*)\x03?.*", string)
+                    match=re.search("#en.wikipedia :\x0314\[\[\x0307(.+?)\x0314\]\]\x034 (.*?)\x0310.*\x0302(.*?)\x03.+\x0303(.+?)\x03.+\x03 (.*) \x0310(.*)\x03?.*", string)
                     if match is not None:
                         self.record(match)
 
-                if '!op' in line:
-                    user = line[line.find('!op')+len('!op'):].rstrip().lstrip()
-                    if user in safe:
-                        self.client.sendall("MODE {0} +o {1}\r\n".format(channel, user))
-
-                if 'PING' in line: #If the server pings, ping back (keeps connection)
+                if 'PING' in line:
                     msg = line.split(':')[1].lstrip().rstrip()
                     self.client.sendall("PONG {0}\r\n".format(msg))
                 
                 if 'Nickname is already in use' in line:
-                    self.s.sendall("NICK %s\r\n" % nick+random.randint(1, 10)) #Sets the Bot's nick name
-                    self.s.sendall("USER %s %s bla :%s\r\n" % (ident, self.host, realname)) #Logs Bot into IRC and ID's
-                    self.s.send("JOIN :#%s\r\n" % self.channel) #Join #nullbytez
+                    self.client.sendall("NICK %s\r\n" % self.config['nick']+str(random.randint(1, 10)))
+                    self.client.sendall("USER %s %s as :%s\r\n" % (self.config['ident'], self.host, self.config['realname']))
+                    self.client.send("JOIN :#%s\r\n" % self.channel)
     
     def record(self,match):
-        url="http://de.wikipedia.org/wiki/%s" % unicode(match.group(1),"utf-8")
+        url="http://en.wikipedia.org/wiki/%s" % unicode(match.group(1),"utf-8")
         match2=re.search("\x0302(.*)\x0310",match.group(6))
         if re.search("N|upload",match.group(2)):
             self.logger.debug("New entry at URL: %s" % url)
             self._create_resource(url)
             if match2 is not None:
-                url="http://de.wikipedia.org/wiki/%s" % unicode(match2.group(1),"utf-8")
+                url="http://en.wikipedia.org/wiki/%s" % unicode(match2.group(1),"utf-8")
                 self.logger.debug("New entry part 2 at URL: %s" % url)
                 self._create_resource(url)
         elif re.search("delete",match.group(2)):    
             self.logger.debug("Deleted URL: %s" % url)
             self._delete_resource(url)
             if match2 is not None:
-                url="http://de.wikipedia.org/wiki/%s" % unicode(match2.group(1),"utf-8")
+                url="http://en.wikipedia.org/wiki/%s" % unicode(match2.group(1),"utf-8")
                 self.logger.debug("Deleted entry part2 at URL: %s" % url)
                 self._delete_resource(url)
         elif re.search("approve",match.group(2)):
             self.logger.debug("ApprovedUpdate at URL: %s" % match.group(1))
             self._update_resource(url)
             if match2 is not None:
-                url="http://de.wikipedia.org/wiki/%s" % unicode(match2.group(1),"utf-8")
+                url="http://en.wikipedia.org/wiki/%s" % unicode(match2.group(1),"utf-8")
                 self.logger.debug("Approved entry part 2 at URL: %s" % url)
                 self._update_resource(url)
         else:
@@ -414,66 +395,7 @@ class Source(Observable):
             'no_events': self.no_events
         }
         self.logger.info("Source stats: %s" % stats)
-    
-    def process_record(self,record,init=False):
-        """reads record, extract and returns record with information about (resource uri, timestamp, identifier)
-        return true, if record was processed successfully"""
-        timestamp=Common.tofloat(record.header().datestamp())
-        identifier=record.header().identifier()
-        if(not record.header().isDeleted()):    #if resource new or updated
-            basename=record.resource()
-            if identifier in self.oaimapping: # if update
-                self.logger.debug("updating resource: identifier: %s basename: %s, timestamp %s" % (identifier, basename, timestamp))                    
-                self._update_resource(basename,identifier,timestamp)
-                return True
-            else:                               # or create
-                self.logger.debug("adding ressource: identifier: %s, basename %s, timestamp %s" % (identifier,
-                                basename, timestamp))                    
-                self._create_resource(basename,identifier,timestamp)
-                return True
-        elif(not init):
-            self.logger.debug("deleting identifier: %s, timestamp %s" % (identifier, timestamp))                    
-            self._delete_resource(identifier,timestamp)
-            return True
-        return False
-        
-    def check_for_updates(self):
-        """Based on sleep_time and max_runs check on a given interval if the source has creations, updates, deletions"""
-        no_run=1
-        while no_run != self.config['max_runs']:
-            time.sleep(self.config['sleep_time'])
-            self.logger.debug("Start with %d. run to check for updates at OAI with checkdate: %s" % 
-                            (no_run,self.lastcheckdate))
-            self.check()
-            no_run+=1
-        
-    def check(self):
-        """check endpoint for new records
-        filters records whose responseDate is lower as the last checkdate
-        the filter is required since most endpoints work with finest granularity of days"""
-        try:
-            checkdate=self.lastcheckdate
-            self.logger.debug("Requesting new records with date: %s" % checkdate)
-            for i,record in enumerate(self.client.listRecords(checkdate)): # limit to specific date
-                if record.id() in self.oaimapping:
-                    if record.header().isDeleted():
-                        self.process_record(record) # record in list, but now deleted
-                    else:
-                        if self.lastcheckdate<=record.header().datestamp():
-                            self.process_record(record) # record in list, and has lastmodified-date>lastcheckdate
-                        else:     
-                            self.logger.debug("Record %s read, but is already in list (could have been updated, but not possible to detect)" % (record.header().identifier()))
-                elif record.header().isDeleted() is not True:
-                    self.process_record(record) # record not in list, and not deleted -> must be a new record
-                checkdate=record.responseDate()
-            self.lastcheckdate=checkdate
-        except NoRecordsException as e:
-            self.logger.info("No new records found: %s" % e)
-        except URLError, e:
-            self.logger.error("URL-Error: %s" % e)
-        except socket.error, e:
-            self.logger.error("Socket-Error: %s" % e)
-            
+           
     def disconnect(self):
         if self.client is not None:
             self.client.disconnect()

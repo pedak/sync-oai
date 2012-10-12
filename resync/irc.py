@@ -24,10 +24,13 @@ SOURCE_LOG_FILE = 'resync-source.log'
 
 
 class IRCClient():
-    def __init__(self,host,channel):
+    def __init__(self,host,channel,nick,ident,realname):
         self.host=host
         self.channel=channel
         self.connected=False
+        self.nick=nick
+        self.ident=ident
+        self.realname=realname
         
     def init_logging(file=False, console=False, eval_mode=False):
         """Initialize logging"""
@@ -56,26 +59,18 @@ class IRCClient():
             
             
     def connect(self):
-        safe = ['tester122'] #Users that can control the bots actions
-
-        #Global Variables
-
-        port=6667 #This is the port
-        nick="simplewikibot" #Bot name
-        ident="tester12223" #ID to NickServ with this name
-        realname="tester12223" #Bots real name for server identification
-        self.s=socket.socket(socket.AF_INET, socket.SOCK_STREAM, socket.IPPROTO_TCP ) #Creates a new socket
-        self.s.connect((self.host, port)) #Connect to the host IRC network through port 6667
+        port=6667
+        self.s=socket.socket(socket.AF_INET, socket.SOCK_STREAM, socket.IPPROTO_TCP ) 
+        self.s.connect((self.host, port)) 
         self.connected=True
-        self.s.sendall("NICK %s\r\n" % nick) #Sets the Bot's nick name
-        self.s.sendall("USER %s %s bla :%s\r\n" % (ident, self.host, realname)) #Logs Bot into IRC and ID's
-        self.s.send("JOIN :#%s\r\n" % self.channel) #Join #nullbytez
-        # s.send("PRIVMSG %s :%s\r\n" % (channel, "Hi :3 Imma robot")) #Send messages to channel
-        # s.send("PRIVMSG %s :%s\r\n"% (channel, "Give me awpz!"))
-        
+        self.s.sendall("NICK %s\r\n" % self.nick) 
+        self.s.sendall("USER %s %s as :%s\r\n" % (self.ident, self.host, self.realname)) 
+        self.s.send("JOIN :#%s\r\n" % self.channel) 
         return self.s.makefile()
       
-
+    def send(self,message):
+        self.s.send(message)
+        
     def sendall(self, message):
         self.s.sendall(message)
         

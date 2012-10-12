@@ -5,13 +5,12 @@
 source:
     name: ResourceSync OAI-Adapter
     host: irc.wikimedia.org
-    channel: de.wikipedia
-    sleep_time: 360
-    delay_time: 60
-    fromdate: 2012-10-02T00:00:00
+    channel: en.wikipedia
+    nick: simplewikibot
+    ident: simplewikibot-ident
+    realname: simplewikibot-realname
     event_types: [create, update, delete]
-    limit: False
-    checkurl: False
+
 
 ##### Inventory Builder Implementations #####
 
@@ -23,8 +22,8 @@ source:
 # A static builder that creates and writes inventories in given intervals
 inventory_builder:
     class: StaticInventoryBuilder
-    max_sitemap_entries: 500
-    interval: 360
+    max_sitemap_entries: 1000
+    interval: 1800
     uri_path: sitemap.xml
 
 ##### ChangeMemory Implementations #####

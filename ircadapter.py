@@ -70,6 +70,10 @@ def main():
     p.add_option('--eval', '-e', action='store_true',
                     default=False,
                     help="run in evaluation mode (log all events)")
+
+    p.add_option('--dumpfile', '-d', action='store',
+                    default="wikipedia-latest-titles",
+                    help="dumpfile to import")
     
     # Parse command line arguments
     (args, map) = p.parse_args()
@@ -126,7 +130,7 @@ def main():
     http_interface = HTTPInterface(source)
     try:
         http_interface.start()
-        source.bootstrap_irc(source_settings['host'],source_settings['channel'])
+        source.bootstrap_irc(source_settings['host'],source_settings['channel'],args.dumpfile)
     except KeyboardInterrupt:
         print "\nStopping irc adapter, server and exiting gracefully..."
     finally:
