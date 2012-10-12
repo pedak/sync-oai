@@ -325,12 +325,22 @@ class Source(Observable):
     
     def bootstrap_irc(self,endpoint,channel): #todo update granularity
         """bootstraps OAI-PMH Source"""
+        self.loadDump()
         self.channel=channel
         self.logger.debug("Connecting to Wikimedia-IRC-Endpoint %s" % endpoint)
         self.client=IRCClient(endpoint,channel)
         self.irc=self.client.connect()
         self.process()
         
+    def loadDump(self):
+        fh=open("wikipedia-latest-titles")
+        i=0
+        for i,line in enumerate(fh):
+            resource=line[:len(line)-1]
+            self._create_resource(resource,notify_observers=False)
+            print "%s %screated" % (i,resource)
+
+            
     def process(self):
         while 1: #Loop forever because 1 == always True (keeps us connected to IRC)
             #time.sleep(1)
