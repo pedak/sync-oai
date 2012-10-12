@@ -202,6 +202,7 @@ class Source(Observable):
         self.client=None #oai
         self.host=None
         self.nick="simplewikibot"
+        self.x={}
     
     ##### Source capabilities #####
     
@@ -296,6 +297,7 @@ class Source(Observable):
     def _update_resource(self, basename):
         """Update a resource, notify observers."""
         timestamp = time.time()
+        
         self._repository[basename] = {'timestamp': timestamp}
             
         change = ResourceChange(
@@ -328,64 +330,61 @@ class Source(Observable):
         
     def loadDump(self, filename):
         fh=open(filename)
-        i=0
         for i,line in enumerate(fh):
             resource=line[:len(line)-1]
             self._create_resource(unicode(resource,"utf-8"),notify_observers=False)
-            print "%s %screated" % (i,resource)
+            self.logger.debug("%s %screated" % (i,resource))
+        self.logger.info("%s resources created" % i)
 
             
     def process(self):
         while 1:
             line = self.irc.readline().rstrip() 
-            if re.search(".*\001.*\001.*", line): #This block searches chan msgs for strings
-                user = line.split('!~')[0][1:]
-                self.client.sendall('PRIVMSG {0} :stop plox\r\n'.format(user))
-            else:
-                if 'rc-pmtpa' in line:
-                    #regex = re.compile("\x03(?:\d{1,2}(?:,\d{1,2})?)?", re.UNICODE)
-                    #string=regex.sub("",line)
-                    string=line
-                    self.logger.debug(string)
-                    match=re.search("#en.wikipedia :\x0314\[\[\x0307(.+?)\x0314\]\]\x034 (.*?)\x0310.*\x0302(.*?)\x03.+\x0303(.+?)\x03.+\x03 (.*) \x0310(.*)\x03?.*", string)
-                    if match is not None:
-                        self.record(match)
+            if 'rc-pmtpa' in line:
+                #regex = re.compile("\x03(?:\d{1,2}(?:,\d{1,2})?)?", re.UNICODE)
+                #string=regex.sub("",line)
+                string=line
+                self.logger.debug(string)
+                match=re.search("#en.wikipedia :\x0314\[\[\x0307(.+?)\x0314\]\]\x034 (.*?)\x0310.*\x0302(.*?)\x03.+\x0303(.+?)\x03.+\x03 (.*) \x0310(.*)\x03?.*", string)
+                if match is not None:
+                    self.record(match)
 
-                if 'PING' in line:
-                    msg = line.split(':')[1].lstrip().rstrip()
-                    self.client.sendall("PONG {0}\r\n".format(msg))
-                
-                if 'Nickname is already in use' in line:
-                    self.client.sendall("NICK %s\r\n" % self.config['nick']+str(random.randint(1, 10)))
-                    self.client.sendall("USER %s %s as :%s\r\n" % (self.config['ident'], self.host, self.config['realname']))
-                    self.client.send("JOIN :#%s\r\n" % self.channel)
+            if 'PING' in line:
+                msg = line.split(':')[1].lstrip().rstrip()
+                self.client.sendall("PONG {0}\r\n".format(msg))
+            
+            if 'Nickname is already in use' in line:
+                self.client.sendall("NICK %s\r\n" % self.config['nick']+str(random.randint(1, 10)))
+                self.client.sendall("USER %s %s as :%s\r\n" % (self.config['ident'], self.host, self.config['realname']))
+                self.client.send("JOIN :#%s\r\n" % self.channel)
     
     def record(self,match):
         url="http://en.wikipedia.org/wiki/%s" % unicode(match.group(1),"utf-8")
         match2=re.search("\x0302(.*)\x0310",match.group(6))
         if re.search("N|upload",match.group(2)):
-            self.logger.debug("New entry at URL: %s" % url)
+            self.logger.info("NEW entry at URL: %s" % url)
             self._create_resource(url)
             if match2 is not None:
                 url="http://en.wikipedia.org/wiki/%s" % unicode(match2.group(1),"utf-8")
-                self.logger.debug("New entry part 2 at URL: %s" % url)
+                self.logger.info("New entry part 2 at URL: %s" % url)
                 self._create_resource(url)
         elif re.search("delete",match.group(2)):    
-            self.logger.debug("Deleted URL: %s" % url)
+            self.logger.info("DELETED URL: %s" % url)
             self._delete_resource(url)
             if match2 is not None:
                 url="http://en.wikipedia.org/wiki/%s" % unicode(match2.group(1),"utf-8")
-                self.logger.debug("Deleted entry part2 at URL: %s" % url)
+                self.logger.info("DELETED2 entry part2 at URL: %s" % url)
                 self._delete_resource(url)
-        elif re.search("approve",match.group(2)):
-            self.logger.debug("ApprovedUpdate at URL: %s" % match.group(1))
+        elif re.search("approve|move",match.group(2)):
+            self.logger.info("APPROVEDUpdate at URL: %s" % match.group(1))
             self._update_resource(url)
             if match2 is not None:
                 url="http://en.wikipedia.org/wiki/%s" % unicode(match2.group(1),"utf-8")
-                self.logger.debug("Approved entry part 2 at URL: %s" % url)
+                self.logger.info("APPROVED or Moved entry part 2 at URL: %s" % url)
                 self._update_resource(url)
         else:
             self.logger.debug("Update at URL: %s" % match.group(1))
+            self.logger.info("Normal UPDATE entry at URL: %s" % url)
             self._update_resource(url)
             
     def _log_stats(self):
