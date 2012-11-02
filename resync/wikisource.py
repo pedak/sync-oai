@@ -31,12 +31,6 @@ from resync.digest import compute_md5_for_string
 from resync.inventory import Inventory
 from resync.sitemap import Sitemap, Mapper
 
-##oai imports
-from oaipmh.oai import Client, Header, Record, NoRecordsException
-from oaipmh.common import Common
-import datetime
-from urllib2 import URLError
-from dateutil import parser as dateutil_parser
 import re
 import socket
 
@@ -199,7 +193,7 @@ class Source(Observable):
         self.inventory_builder = None # The inventory builder implementation
         self.changememory = None # The change memory implementation
         self.no_events = 0
-        self.client=None #oai
+        self.client=None
         self.host=None
         self.nick="simplewikibot"
         self.x={}

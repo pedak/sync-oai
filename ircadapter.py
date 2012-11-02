@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 # encoding: utf-8
 """
-simulate-oai-adapter: The ResourceSync command line tool for OAI-PMH synchronization.
+ircadapter: The ResourceSync command line tool for Wikipedia synchronization.
 
-Created by Peter Kalchgruber on 2012-09-01.
+Created by Peter Kalchgruber on 2012-10-01.
 Based on simulate-source of Bernhard Haslhofer
 """
 
@@ -52,8 +52,6 @@ def main():
     p.add_option('--config-file', '-c', type=str, action='store',
                     default=DEFAULT_CONFIG_FILE,
                     help="the simulation configuration file")
-    p.add_option('--endpoint-url', '-u', type=str, action='store',
-                    help="the oai-pmh endpoint")
                     
     p.add_option('--port', '-p', type=int, action='store',
                     default=8888,
@@ -123,7 +121,7 @@ def main():
     # Bootstrap the source
     print "Bootstrapping the source ..."
     source.bootstrap()
-    print "OAI-PMH adapter is now running at %s" % source.base_uri
+    print "Wikipedia adapter is now running at %s" % source.base_uri
     
     # Start the Web interface, run the simulation
     # Attach HTTP interface to source
