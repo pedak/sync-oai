@@ -28,7 +28,8 @@ or run the ResourceSync OAI-PMH Adapter with static sitemap, changeset generatio
 
     ./oai-adapter -c config/static.yaml -u http://www.example.org/oai-endpoint/oai
 
-or run at remote host
+or run at remote host:
+
 	./oai-adapter.py -u "http://eprints.example.com/cgi/oai2" -l -e -c "config/static.yaml" -p 6789 -n "example.server.com" &
 
 Run the resync client against the simulated source
