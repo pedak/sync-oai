@@ -31,7 +31,7 @@ def init_logging(file=False, console=False, eval_mode=False):
         fh = logging.FileHandler(filename=SOURCE_LOG_FILE, mode='a')
         fh.setFormatter(formatter)
     
-    loggers = ['source']
+    loggers = ['source', 'changememory', 'http', 'sitemap', 'inventory_builder']
     for logger in loggers:
         log = logging.getLogger(logger)
         if eval_mode:

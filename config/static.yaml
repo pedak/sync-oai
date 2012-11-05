@@ -1,4 +1,4 @@
-# The default ResourceSync OAI-Adapter configuration
+# The default ResourceSync Wikipedia-Adapter configuration
 
 ##### Source Configuration #####
 
@@ -6,11 +6,12 @@ source:
     name: ResourceSync OAI-Adapter
     host: irc.wikimedia.org
     channel: en.wikipedia
-    nick: simplewikibot
-    ident: simplewikibot-ident
-    realname: simplewikibot-realname
+    nick: simplewikibot1
+    ident: simplewikibot-ident1
+    realname: simplewikibot-realname1
     event_types: [create, update, delete]
-    dump_file: http://kalchgruber.com/enwiki-latest-all-titles-in-ns0.gz
+#   dump_file: http://kalchgruber.com/enwiki-latest-all-titles-in-ns0.gz
+    dump_file: http://kalchgruber.com/wiki100000.gz
     uri_host: http://en.wikipedia.org/wiki
 
 

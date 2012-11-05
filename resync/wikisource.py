@@ -37,6 +37,9 @@ import urllib2
 import gzip
 import StringIO
 
+#from datetime import date
+#debug
+import datetime
 from irc import IRCClient
 
 #### Source-specific capability implementations ####
@@ -85,13 +88,13 @@ class StaticInventoryBuilder(DynamicInventoryBuilder):
     def bootstrap(self):
         """Bootstraps the static inventory writer background job"""
         self.rm_sitemap_files(Source.STATIC_FILE_PATH)
-        self.write_static_inventory()
-        logging.basicConfig()
-        interval = self.config['interval']
-        sched = Scheduler()
-        sched.start()
-        sched.add_interval_job(self.write_static_inventory,
-                                seconds=interval)
+        # self.write_static_inventory()
+        # logging.basicConfig()
+        # interval = self.config['interval']
+        # sched = Scheduler()
+        # sched.start()
+        # sched.add_interval_job(self.write_static_inventory,
+        #                         seconds=interval)
     
     def generate(self):
         """Generates an inventory (snapshot from the source)
@@ -324,23 +327,39 @@ class Source(Observable):
         self.irc=self.client.connect()
         self.process()
         
-    def loadDump(self):
+    def checkNewDump(self):
         urlh=urllib2.urlopen(self.config['dump_file'])
         curdumpstamp=urlh.info().getheaders("Last-Modified")[0]
         if curdumpstamp != self.dumpstamp:
             self.dumpstamp=curdumpstamp
-        url_f = StringIO.StringIO(urlh.read())
-        unzipped_file = gzip.GzipFile(fileobj=url_f)
-        self.logger.debug("Dump downloaded")
-        for i,line in enumerate(unzipped_file):
-            resource=self.config['uri_host']+line[:len(line)-1]
-            self._create_resource(unicode(resource,"utf-8"),notify_observers=False)
-            self.logger.debug("%s %screated" % (i,resource))
-        self.logger.info("%s resources created at initial dump import" % i)
+            self.logger.info("New Dump online")
+            return urlh
+        return False
+        
+    def loadDump(self):
+        urlh=self.checkNewDump()
+        if urlh:
+            url_f = StringIO.StringIO(urlh.read())
+            unzipped_file = gzip.GzipFile(fileobj=url_f)
+            self.logger.debug("Dump downloaded")
+            for i,line in enumerate(unzipped_file):
+                resource=self.config['uri_host']+line[:len(line)-1]
+                self._create_resource(unicode(resource,"utf-8"),notify_observers=False)
+                self.logger.debug("%s %screated" % (i,resource))
+            urlh.close()
+            self.logger.info("%s resources created at dump import" % i)
+            self.inventory_builder.write_static_inventory()
 
             
     def process(self):
+        startdate=date.today()
         while 1:
+            today=date.today()
+            if startdate != today:
+                startdate=today
+                self.logger.info("Day over, checking new dump")
+                self.loadDump()
+                #generate new sitemaps after loading dump
             line = self.irc.readline().rstrip() 
             if 'rc-pmtpa' in line:
                 #regex = re.compile("\x03(?:\d{1,2}(?:,\d{1,2})?)?", re.UNICODE)
@@ -364,29 +383,29 @@ class Source(Observable):
         url="http://en.wikipedia.org/wiki/%s" % unicode(match.group(1),"utf-8")
         match2=re.search("\x0302(.*)\x0310",match.group(6))
         if re.search("N|upload",match.group(2)):
-            self.logger.info("NEW entry at URL: %s" % url)
+            self.logger.debug("NEW entry at URL: %s" % url)
             self._create_resource(self.config['uri_host']+url)
             if match2 is not None:
                 url="http://en.wikipedia.org/wiki/%s" % unicode(match2.group(1),"utf-8")
-                self.logger.info("New entry part 2 at URL: %s" % url)
+                self.logger.debug("New entry part 2 at URL: %s" % url)
                 self._create_resource(url)
         elif re.search("delete",match.group(2)):    
-            self.logger.info("DELETED URL: %s" % url)
+            self.logger.debug("DELETED URL: %s" % url)
             self._delete_resource(url)
             if match2 is not None:
                 url="http://en.wikipedia.org/wiki/%s" % unicode(match2.group(1),"utf-8")
-                self.logger.info("DELETED2 entry part2 at URL: %s" % url)
+                self.logger.debug("DELETED2 entry part2 at URL: %s" % url)
                 self._delete_resource(url)
         elif re.search("approve|move",match.group(2)):
-            self.logger.info("APPROVEDUpdate at URL: %s" % match.group(1))
+            self.logger.debug("APPROVEDUpdate at URL: %s" % match.group(1))
             self._update_resource(url)
             if match2 is not None:
                 url="http://en.wikipedia.org/wiki/%s" % unicode(match2.group(1),"utf-8")
-                self.logger.info("APPROVED or Moved entry part 2 at URL: %s" % url)
+                self.logger.debug("APPROVED or Moved entry part 2 at URL: %s" % url)
                 self._update_resource(url)
         else:
             self.logger.debug("Update at URL: %s" % match.group(1))
-            self.logger.info("Normal UPDATE entry at URL: %s" % url)
+            self.logger.debug("Normal UPDATE entry at URL: %s" % url)
             self._update_resource(url)
             
     def _log_stats(self):
