@@ -10,6 +10,8 @@ source:
     ident: simplewikibot-ident
     realname: simplewikibot-realname
     event_types: [create, update, delete]
+    dump_file: http://kalchgruber.com/enwiki-latest-all-titles-in-ns0.gz
+    uri_host: en.wikipedia.org/wiki
 
 
 ##### Inventory Builder Implementations #####

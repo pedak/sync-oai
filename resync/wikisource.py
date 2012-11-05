@@ -33,6 +33,9 @@ from resync.sitemap import Sitemap, Mapper
 
 import re
 import socket
+import urllib2
+import gzip
+import StringIO
 
 from irc import IRCClient
 
@@ -171,7 +174,7 @@ class StaticInventoryBuilder(DynamicInventoryBuilder):
         return sum([os.stat(directory + "/" + f).st_size 
                         for f in self.ls_sitemap_files(directory)])
     
-#### OAI-Adapter Source ####
+#### IRC-Adapter Source ####
 
 class Source(Observable):
     """A source contains a list of resources and changes over time"""
@@ -193,10 +196,10 @@ class Source(Observable):
         self.inventory_builder = None # The inventory builder implementation
         self.changememory = None # The change memory implementation
         self.no_events = 0
-        self.client=None
-        self.host=None
-        self.nick="simplewikibot"
-        self.x={}
+        self.client = None
+        self.host = None
+        self.nick = "simplewikibot"
+        self.dumpstamp = 0
     
     ##### Source capabilities #####
     
@@ -312,23 +315,28 @@ class Source(Observable):
             self.notify_observers(change)
             self.logger.debug("Event: %s" % repr(change))
     
-    def bootstrap_irc(self,endpoint,channel,dumpfile): #todo update granularity
-        """bootstraps OAI-PMH Source"""
-        if dumpfile:
-            self.loadDump(dumpfile)
+    def bootstrap_irc(self,endpoint,channel): #todo update granularity
+        """bootstraps IRC-PMH Source"""
+        self.loadDump()
         self.channel=channel
         self.logger.debug("Connecting to Wikimedia-IRC-Endpoint %s" % endpoint)
         self.client=IRCClient(endpoint,channel,self.config['nick'],self.config['ident'],self.config['realname'])
         self.irc=self.client.connect()
         self.process()
         
-    def loadDump(self, filename):
-        fh=open(filename)
-        for i,line in enumerate(fh):
-            resource=line[:len(line)-1]
+    def loadDump(self):
+        urlh=urllib2.urlopen(self.config['dump_file'])
+        curdumpstamp=urlh.info().getheaders("Last-Modified")[0]
+        if curdumpstamp != self.dumpstamp:
+            self.dumpstamp=curdumpstamp
+        url_f = StringIO.StringIO(urlh.read())
+        unzipped_file = gzip.GzipFile(fileobj=url_f)
+        self.logger.debug("Dump downloaded")
+        for i,line in enumerate(unzipped_file):
+            resource=self.config['uri_host']+line[:len(line)-1]
             self._create_resource(unicode(resource,"utf-8"),notify_observers=False)
             self.logger.debug("%s %screated" % (i,resource))
-        self.logger.info("%s resources created" % i)
+        self.logger.info("%s resources created at initial dump import" % i)
 
             
     def process(self):
@@ -357,7 +365,7 @@ class Source(Observable):
         match2=re.search("\x0302(.*)\x0310",match.group(6))
         if re.search("N|upload",match.group(2)):
             self.logger.info("NEW entry at URL: %s" % url)
-            self._create_resource(url)
+            self._create_resource(self.config['uri_host']+url)
             if match2 is not None:
                 url="http://en.wikipedia.org/wiki/%s" % unicode(match2.group(1),"utf-8")
                 self.logger.info("New entry part 2 at URL: %s" % url)
