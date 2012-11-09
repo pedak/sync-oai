@@ -39,7 +39,7 @@ import StringIO
 
 #from datetime import date
 #debug
-import datetime
+from datetime import date
 from irc import IRCClient
 
 #### Source-specific capability implementations ####
