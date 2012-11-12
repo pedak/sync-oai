@@ -325,7 +325,8 @@ class Source(Observable):
         self.channel=channel
         self.logger.debug("Connecting to Wikimedia-IRC-Endpoint %s" % endpoint)
         self.client=IRCClient(endpoint,channel,self.config['nick'],self.config['ident'],self.config['realname'])
-        self.irc=self.client.connect()
+        self.client.connect()
+        self.ircstream=self.client.register()
         self.process()
         
     def checkNewDump(self):
@@ -362,7 +363,7 @@ class Source(Observable):
                 self.logger.info("Checking if a new version of the dump is online")
                 self.loadDump()
                 #generate new sitemaps after loading dump
-            line = self.irc.readline().rstrip() 
+            line = self.ircstream.readline().rstrip() 
             if 'rc-pmtpa' in line:
                 #regex = re.compile("\x03(?:\d{1,2}(?:,\d{1,2})?)?", re.UNICODE)
                 #string=regex.sub("",line)
@@ -377,9 +378,7 @@ class Source(Observable):
                 self.client.sendall("PONG {0}\r\n".format(msg))
             
             if 'Nickname is already in use' in line:
-                self.client.sendall("NICK %s\r\n" % self.config['nick']+str(random.randint(1, 10)))
-                self.client.sendall("USER %s %s as :%s\r\n" % (self.config['ident'], self.host, self.config['realname']))
-                self.client.send("JOIN :#%s\r\n" % self.channel)
+                self.client.register(randomnick=True)
     
     def record(self,match):
         url="http://en.wikipedia.org/wiki/%s" % unicode(match.group(1),"utf-8")
