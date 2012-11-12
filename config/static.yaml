@@ -10,8 +10,7 @@ source:
     ident: simplewikibot-ident1
     realname: simplewikibot-realname1
     event_types: [create, update, delete]
-#   dump_file: http://kalchgruber.com/enwiki-latest-all-titles-in-ns0.gz
-    dump_file: http://kalchgruber.com/wiki100000.gz
+    dump_file: http://kalchgruber.com/enwiki-latest-all-titles-in-ns0.gz
     uri_host: http://en.wikipedia.org/wiki
 
 

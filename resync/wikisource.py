@@ -333,8 +333,9 @@ class Source(Observable):
         curdumpstamp=urlh.info().getheaders("Last-Modified")[0]
         if curdumpstamp != self.dumpstamp:
             self.dumpstamp=curdumpstamp
-            self.logger.info("New Dump online")
+            self.logger.info("New Dump detected")
             return urlh
+        urlh.close()
         return False
         
     def loadDump(self):
@@ -353,9 +354,9 @@ class Source(Observable):
 
             
     def process(self):
-        startdate=datetime.datetime.today().hour
+        startdate=datetime.datetime.today().minute
         while 1:
-            today=datetime.datetime.today().hour
+            today=datetime.datetime.today().minute
             if startdate != today:
                 startdate=today
                 self.logger.info("Checking if a new version of the dump is online")
