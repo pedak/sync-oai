@@ -113,7 +113,6 @@ class StaticInventoryBuilder(DynamicInventoryBuilder):
     def write_static_inventory(self):
         """Writes the inventory to the filesystem"""
         # Generate sitemap in temp directory
-        self.logger.info("New attempt to write static sitemap inventory. %s" % log_data)
         then = time.time()
         self.ensure_temp_dir(Source.TEMP_FILE_PATH)
         inventory = self.generate()

@@ -91,7 +91,7 @@ def main():
     # Set up and register the source inventory (if defined)
     if config.has_key('inventory_builder'):
         klass_name = config['inventory_builder']['class']
-        mod = __import__('resync.source', fromlist=[klass_name])
+        mod = __import__('resync.wikisource', fromlist=[klass_name])
         inventory_builder_klass = getattr(mod, klass_name)
         builder = inventory_builder_klass(source, config['inventory_builder'])
         source.add_inventory_builder(builder)
