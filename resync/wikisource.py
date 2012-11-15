@@ -363,8 +363,6 @@ class Source(Observable):
                 self.logger.debug("%s %screated" % (i,resource))
                 if i % self.config['max_sitemap_entries'] == 0:
                     self.inventory_builder.write_static_inventory(i/self.config['max_sitemap_entries'])
-                if i>30000:
-                    break
             urlh.close()
             self.inventory_builder.finalize_inventory()
             self.logger.info("%s resources created at dump import" % i)
