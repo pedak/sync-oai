@@ -12,6 +12,7 @@ source:
     event_types: [create, update, delete]
     dump_file: http://dumps.wikimedia.org/enwiki/latest/enwiki-latest-all-titles-in-ns0.gz
     uri_host: http://en.wikipedia.org/wiki
+    max_sitemap_entries: 10000
 
 
 ##### Inventory Builder Implementations #####
@@ -24,8 +25,8 @@ source:
 # A static builder that creates and writes inventories in given intervals
 inventory_builder:
     class: StaticInventoryBuilder
-    max_sitemap_entries: 1000
-    interval: 1800
+    max_sitemap_entries: 10000
+#  interval: 1800
     uri_path: sitemap.xml
 
 ##### ChangeMemory Implementations #####
@@ -41,8 +42,8 @@ changememory:
     class: StaticChangeSet
     uri_path: changesets
     uri_file: most_recent.xml
-    max_sitemap_entries: 50
-    max_changes: 50
+    max_sitemap_entries: 1000
+    max_changes: 1000
 
 ##### Publisher implementations #####
 

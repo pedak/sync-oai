@@ -67,6 +67,69 @@ class Sitemap(object):
 
     ##### General sitemap methods that also handle sitemapindexes #####
 
+    def writenow(self, num, resources=None, basename='/tmp/sitemap.xml', changeset=False):
+          """Write one or a set of sitemap files to disk
+
+          resources is a ResourceContainer that may be an Inventory or
+          a ChangeSet. This may be a generator so data is read as needed
+          and length is determined at the end.
+
+          basename is used as the name of the single sitemap file or the 
+          sitemapindex for a set of sitemap files.
+
+          if changeset is set true then type information is added to indicate
+          that this sitemap file is a changeset and not an inventory.
+
+          Uses self.max_sitemap_entries to determine whether the inventory can 
+          be written as one sitemap. If there are more entries and 
+          self.allow_multifile is set true then a set of sitemap files, 
+          with an sitemapindex, will be written.
+          """
+          # Access resources trough iterator only
+          resources_iter = iter(resources)
+          ( chunk, next ) = self.get_resources_chunk(resources_iter)
+          #if (next is not None):
+          # Have more than self.max_sitemap_entries => sitemapindex
+          if (not self.allow_multifile):
+              raise Exception("Too many entries for a single sitemap but multifile disabled")
+          # Work out how to name the sitemaps, attempt to add %05d before ".xml$", else append
+          sitemap_prefix = basename
+          sitemap_suffix = '.xml'
+          if (basename[-4:] == '.xml'):
+              sitemap_prefix = basename[:-4]
+          # Use iterator over all resources and count off sets of
+          # max_sitemap_entries to go into each sitemap, store the
+          # names of the sitemaps as we go
+          sitemaps={}
+          
+          file = sitemap_prefix + ( "%05d" % (len(sitemaps)+num) ) + sitemap_suffix
+          self.logger.info("Writing sitemap %s..." % (file))
+          f = open(file, 'w')
+          f.write(self.resources_as_xml(chunk,changeset=changeset))
+          f.close()
+          # Record timestamp
+          #sitemaps[file] = os.stat(file).st_mtime
+
+          self.logger.info("Wrote %d sitemaps" % (len(sitemaps)))
+          return (file,os.stat(file).st_mtime)
+          
+    def writeIndex(self, sitemaps, basename):
+          print basename
+          f = open(basename, 'w')
+          self.logger.info("Writing sitemapindex %s..." % (basename))
+          print self.sitemapindex_as_xml(sitemaps=sitemaps)
+          f.write(self.sitemapindex_as_xml(sitemaps=sitemaps))
+          f.close()
+          self.logger.info("Wrote sitemapindex %s" % (basename))
+          # else:
+          #               f = open(basename, 'w')
+          #               self.logger.info("Writing sitemap %s..." % (basename))
+          #               f.write(self.resources_as_xml(chunk,capabilities=resources.capabilities,changeset=changeset))
+          #               f.close()
+          #               self.logger.info("Wrote sitemap %s" % (basename))
+          
+          
+          
     def write(self, resources=None, basename='/tmp/sitemap.xml', changeset=False):
         """Write one or a set of sitemap files to disk
 

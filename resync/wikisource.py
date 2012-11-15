@@ -84,6 +84,7 @@ class StaticInventoryBuilder(DynamicInventoryBuilder):
     
     def __init__(self, source, config):
         super(StaticInventoryBuilder, self).__init__(source, config)
+        self.sitemaps={}
                                 
     def bootstrap(self):
         """Bootstraps the static inventory writer background job"""
@@ -107,10 +108,20 @@ class StaticInventoryBuilder(DynamicInventoryBuilder):
         #                       capabilities=capabilities)
         inventory = Inventory(resources=None, capabilities=capabilities)
         for resource in self.source.resources:
-            if resource is not None: inventory.add(resource)
+            if resource is not None:
+                inventory.add(resource)
         return inventory
     
-    def write_static_inventory(self):
+    def finalize_inventory(self):
+        s=Sitemap()
+        self.ensure_temp_dir(Source.TEMP_FILE_PATH)
+        s.mapper=Mapper([self.source.base_uri, Source.TEMP_FILE_PATH])
+        basename = Source.TEMP_FILE_PATH + "/sitemap.xml"
+        s.writeIndex(self.sitemaps,basename)
+        self.mv_sitemap_files(Source.TEMP_FILE_PATH, Source.STATIC_FILE_PATH)
+         
+    
+    def write_static_inventory(self, num):
         """Writes the inventory to the filesystem"""
         # Generate sitemap in temp directory
         then = time.time()
@@ -120,9 +131,11 @@ class StaticInventoryBuilder(DynamicInventoryBuilder):
         s=Sitemap()
         s.max_sitemap_entries=self.config['max_sitemap_entries']
         s.mapper=Mapper([self.source.base_uri, Source.TEMP_FILE_PATH])
-        s.write(inventory, basename)
+        sitemap=s.writenow(num, inventory, basename)
+        self.sitemaps[sitemap[0]]=sitemap[1]
+        self.source._repository={}
         # Delete old sitemap files; move the new ones; delete the temp dir
-        self.rm_sitemap_files(Source.STATIC_FILE_PATH)
+        if num==1: self.rm_sitemap_files(Source.STATIC_FILE_PATH)
         self.mv_sitemap_files(Source.TEMP_FILE_PATH, Source.STATIC_FILE_PATH)
         shutil.rmtree(Source.TEMP_FILE_PATH)
         now = time.time()
@@ -348,9 +361,14 @@ class Source(Observable):
                 resource=self.config['uri_host']+line[:len(line)-1]
                 self._create_resource(unicode(resource,"utf-8"),notify_observers=False)
                 self.logger.debug("%s %screated" % (i,resource))
+                if i % self.config['max_sitemap_entries'] == 0:
+                    self.inventory_builder.write_static_inventory(i/self.config['max_sitemap_entries'])
+                if i>30000:
+                    break
             urlh.close()
+            self.inventory_builder.finalize_inventory()
             self.logger.info("%s resources created at dump import" % i)
-            self.inventory_builder.write_static_inventory()
+
 
             
     def process(self):
