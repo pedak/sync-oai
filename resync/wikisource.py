@@ -119,6 +119,14 @@ class StaticInventoryBuilder(DynamicInventoryBuilder):
         basename = Source.TEMP_FILE_PATH + "/sitemap.xml"
         s.writeIndex(self.sitemaps,basename)
         self.mv_sitemap_files(Source.TEMP_FILE_PATH, Source.STATIC_FILE_PATH)
+        sitemap_size = self.compute_sitemap_size(Source.STATIC_FILE_PATH)
+        then = time.time()
+        sm_write_end = ResourceChange(
+             resource = ResourceChange(self.uri, 
+                             size=sitemap_size,
+                             timestamp=then),
+                             changetype = "UPDATED")
+        self.source.notify_observers(sm_write_end)
          
     
     def write_static_inventory(self, num):
@@ -144,12 +152,7 @@ class StaticInventoryBuilder(DynamicInventoryBuilder):
         log_data = {'time': (now-then), 
                     'no_resources': self.source.resource_count}
         self.logger.info("Wrote static sitemap inventory. %s" % log_data)
-        sm_write_end = ResourceChange(
-                resource = ResourceChange(self.uri, 
-                                size=sitemap_size,
-                                timestamp=then),
-                                changetype = "UPDATED")
-        self.source.notify_observers(sm_write_end)
+
         
     def ensure_temp_dir(self, temp_dir):
         """Create temp directory if it doesn't exist; removes existing one"""
@@ -216,6 +219,7 @@ class Source(Observable):
         self.host = None
         self.nick = "simplewikibot"
         self.dumpstamp = 0
+        self.fetched_resources=0
     
     ##### Source capabilities #####
     
@@ -256,8 +260,8 @@ class Source(Observable):
     @property
     def resource_count(self):
         """The number of resources in the source's repository"""
-        return len(self._repository)
-    
+        return (len(self._repository)+self.fetched_resources)
+         
     @property
     def resources(self):
         """Iterates over resources and yields resource objects"""
@@ -362,6 +366,7 @@ class Source(Observable):
                 self._create_resource(unicode(resource,"utf-8"),notify_observers=False)
                 self.logger.debug("%s %screated" % (i,resource))
                 if i % self.config['max_sitemap_entries'] == 0:
+                    self.fetched_resources += len(self._repository)
                     self.inventory_builder.write_static_inventory(i/self.config['max_sitemap_entries'])
             urlh.close()
             self.inventory_builder.finalize_inventory()
