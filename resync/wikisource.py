@@ -375,9 +375,9 @@ class Source(Observable):
 
             
     def process(self):
-        startdate=datetime.datetime.today().minute
+        startdate=datetime.datetime.today().hour
         while 1:
-            today=datetime.datetime.today().minute
+            today=datetime.datetime.today().hour
             if startdate != today:
                 startdate=today
                 self.logger.info("Checking if a new version of the dump is online")
