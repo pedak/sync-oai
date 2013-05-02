@@ -350,7 +350,7 @@ class Source(Observable):
         curdumpstamp=urlh.info().getheaders("Last-Modified")[0]
         if curdumpstamp != self.dumpstamp:
             self.dumpstamp=curdumpstamp
-            self.logger.info("New Dump detected")
+            self.logger.info("New Dump detected - Downloading Dump")
             return urlh
         urlh.close()
         return False
