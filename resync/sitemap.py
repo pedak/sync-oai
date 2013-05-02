@@ -114,10 +114,9 @@ class Sitemap(object):
           return (file,os.stat(file).st_mtime)
           
     def writeIndex(self, sitemaps, basename):
-          print basename
           f = open(basename, 'w')
           self.logger.info("Writing sitemapindex %s..." % (basename))
-          print self.sitemapindex_as_xml(sitemaps=sitemaps)
+          self.sitemapindex_as_xml(sitemaps=sitemaps)
           f.write(self.sitemapindex_as_xml(sitemaps=sitemaps))
           f.close()
           self.logger.info("Wrote sitemapindex %s" % (basename))
