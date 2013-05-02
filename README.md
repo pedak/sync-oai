@@ -14,7 +14,14 @@ Install the [Tornado](http://www.tornadoweb.org/) and [SleekXMPP](https://github
     sudo easy_install sleekxmpp    
     sudo easy_install PyYAML
     sudo easy_install apscheduler
-    sudo easy_install dateutil
+
+If you miss dateutil, download it at: http://labix.org/python-dateutil, untar it:
+tar xvzf python....tar.gz,
+build it:
+python setup.py build
+and install it:
+sudo python setup.py install
+
     
 Get the ResourceSync ResourceSync OAI-PMH Adapter from [Github](http://github.com/pedak/sync-oai.git):
 
