@@ -362,7 +362,7 @@ class Source(Observable):
             unzipped_file = gzip.GzipFile(fileobj=url_f)
             self.logger.debug("Dump downloaded")
             for i,line in enumerate(unzipped_file):
-                resource=self.config['uri_host']+line[:len(line)-1]
+                resource=self.config['uri_host']+"/"+line[:len(line)-1]
                 self._create_resource(unicode(resource,"utf-8"),notify_observers=False)
                 self.logger.debug("%s %screated" % (i,resource))
                 if i % self.config['max_sitemap_entries'] == 0:
