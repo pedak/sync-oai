@@ -141,6 +141,7 @@ class StaticInventoryBuilder(DynamicInventoryBuilder):
         s.mapper=Mapper([self.source.base_uri, Source.TEMP_FILE_PATH])
         sitemap=s.writenow(num, inventory, basename)
         self.sitemaps[sitemap[0]]=sitemap[1]
+        # delete repository entries (to reduce memory load)
         self.source._repository={}
         # Delete old sitemap files; move the new ones; delete the temp dir
         if num==1: self.rm_sitemap_files(Source.STATIC_FILE_PATH)
@@ -346,6 +347,7 @@ class Source(Observable):
         self.process()
         
     def checkNewDump(self):
+        """checks if a new dump exists"""
         urlh=urllib2.urlopen(self.config['dump_file'])
         curdumpstamp=urlh.info().getheaders("Last-Modified")[0]
         if curdumpstamp != self.dumpstamp:
@@ -405,7 +407,7 @@ class Source(Observable):
         match2=re.search("\x0302(.*)\x0310",match.group(6))
         if re.search("N|upload",match.group(2)):
             self.logger.debug("NEW entry at URL: %s" % url)
-            self._create_resource(self.config['uri_host']+url)
+            self._create_resource(url)
             if match2 is not None:
                 url="http://en.wikipedia.org/wiki/%s" % unicode(match2.group(1),"utf-8")
                 self.logger.debug("New entry part 2 at URL: %s" % url)
