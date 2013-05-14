@@ -29,23 +29,19 @@ Get the ResourceSync ResourceSync OAI-PMH Adapter from [Github](http://github.co
     
 Run the ResourceSync OAI-PMH Adapter (with the default configuration in /config/default.yaml):
     
-    chmod u+x oai-adapter
-    ./oai-adapter 
+    chmod u+x irc-adapter
+    ./irc-adapter 
 
-or run the ResourceSync OAI-PMH Adapter with static sitemap, changeset generation and given endpoint
+or run the ResourceSync Wikipedia-IRC Adapter with static sitemap, changeset generation and given hostname
 
-    ./oai-adapter -c config/static.yaml -u http://www.example.org/oai-endpoint/oai
-
-or run at remote host:
-
-	./oai-adapter.py -u "http://eprints.example.com/cgi/oai2" -l -e -c "config/static.yaml" -p 6789 -n "example.server.com" &
+	./ircadapter.py -c config/static.yaml -n "en.wikipedia.example.org"
 
 Run the resync client against the simulated source
 
     chmod u+x resync-client
-    ./resync-client -s http://www.example.org/ /tmp/resync/example.org --sitemap http://localhost:8888/sitemap.xml --noauth
+    ./resync-client -s http://www.example.org/ /tmp/resync/example.org --sitemap http://localhost/sitemap.xml --noauth
 
-Terminate the ResourceSync OAI-PMH Adapter:
+Terminate the ResourceSync Wikipedia-IRC Adapter:
 
     CTRL-C
 

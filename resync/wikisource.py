@@ -88,13 +88,13 @@ class StaticInventoryBuilder(DynamicInventoryBuilder):
     def bootstrap(self):
         """Bootstraps the static inventory writer background job"""
         self.rm_sitemap_files(Source.STATIC_FILE_PATH)
-        # self.write_static_inventory()
-        # logging.basicConfig()
-        # interval = self.config['interval']
-        # sched = Scheduler()
-        # sched.start()
-        # sched.add_interval_job(self.write_static_inventory,
-        #                         seconds=interval)
+        self.write_static_inventory()
+        logging.basicConfig()
+        interval = self.config['interval']
+        sched = Scheduler()
+        sched.start()
+        sched.add_interval_job(self.write_static_inventory,
+                                 seconds=interval)
     
     def generate(self):
         """Generates an inventory (snapshot from the source)
@@ -339,18 +339,19 @@ class Source(Observable):
         return False
         
     def loadDump(self):
-        urlh=self.checkNewDump()
-        if urlh:
-            url_f = StringIO.StringIO(urlh.read())
-            unzipped_file = gzip.GzipFile(fileobj=url_f)
-            self.logger.debug("Dump downloaded")
-            for i,line in enumerate(unzipped_file):
-                resource=self.config['uri_host']+line[:len(line)-1]
-                self._create_resource(unicode(resource,"utf-8"),notify_observers=False)
-                self.logger.debug("%s %screated" % (i,resource))
-            urlh.close()
-            self.logger.info("%s resources created at dump import" % i)
-            self.inventory_builder.write_static_inventory()
+        if 'dump_file' in self.config:
+            urlh=self.checkNewDump()
+            if urlh:
+                url_f = StringIO.StringIO(urlh.read())
+                unzipped_file = gzip.GzipFile(fileobj=url_f)
+                self.logger.debug("Dump downloaded")
+                for i,line in enumerate(unzipped_file):
+                    resource=self.config['uri_host']+"/"+line[:len(line)-1]
+                    self._create_resource(unicode(resource,"utf-8"),notify_observers=False)
+                    self.logger.debug("%s %screated" % (i,resource))
+                urlh.close()
+                self.logger.info("%s resources created at dump import" % i)
+                self.inventory_builder.write_static_inventory()
 
             
     def process(self):
@@ -384,7 +385,7 @@ class Source(Observable):
         match2=re.search("\x0302(.*)\x0310",match.group(6))
         if re.search("N|upload",match.group(2)):
             self.logger.debug("NEW entry at URL: %s" % url)
-            self._create_resource(self.config['uri_host']+url)
+            self._create_resource(url)
             if match2 is not None:
                 url="http://en.wikipedia.org/wiki/%s" % unicode(match2.group(1),"utf-8")
                 self.logger.debug("New entry part 2 at URL: %s" % url)
