@@ -113,6 +113,7 @@ class StaticInventoryBuilder(DynamicInventoryBuilder):
         return inventory
     
     def finalize_inventory(self):
+        """after alle sitemaps are written, does move of sitemap files and cleaning"""
         s=Sitemap()
         self.ensure_temp_dir(Source.TEMP_FILE_PATH)
         s.mapper=Mapper([self.source.base_uri, Source.TEMP_FILE_PATH])
