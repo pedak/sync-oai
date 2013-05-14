@@ -47,7 +47,6 @@ class IRCClient():
         self.s.send(message)
         
     def sendall(self, message):
-        print message
         self.s.sendall(message)
 
         
